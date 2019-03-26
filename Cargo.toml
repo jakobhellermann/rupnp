@@ -1,0 +1,17 @@
+[package]
+name = "upnp"
+version = "0.1.0"
+authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
+edition = "2018"
+
+[dependencies]
+ssdp = "0.7.0"
+serde = { version = "1.0.89", features = ["derive"]}
+serde-xml-rs = "0.3.1"
+
+futures = "0.1.25"
+hyper = "0.12.25"
+
+failure = "0.1.5"
+
+getset = "0.0.7"
