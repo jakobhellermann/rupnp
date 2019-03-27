@@ -22,6 +22,7 @@ fn rendering_control(
             let service = device
                 .find_service("urn:schemas-upnp-org:service:RenderingControl:1")
                 .unwrap();
+
             service.action(
                 &device.ip(),
                 "GetVolume",

@@ -35,9 +35,7 @@ fn parse_scpds(
         .and_then(futures::future::join_all)
         .map(|scpds| {
             for scpd in &scpds {
-                for _action in scpd.actions() {
-
-                }
+                for _action in scpd.actions() {}
             }
         })
 }
