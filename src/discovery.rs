@@ -1,8 +1,8 @@
 use ssdp::header::{HeaderMut, HeaderRef, Location, Man, MX, ST};
 use ssdp::message::{Multicast, SearchRequest};
 
-use futures::{future, Future};
 use crate::device::Device;
+use futures::{future, Future};
 
 pub fn discover_ips(search_target: ST, timeout: u8) -> Result<Vec<hyper::Uri>, failure::Error> {
     let mut request = SearchRequest::new();
@@ -25,10 +25,13 @@ pub fn discover_ips(search_target: ST, timeout: u8) -> Result<Vec<hyper::Uri>, f
     Ok(responses)
 }
 
-pub fn discover(search_target: ST, timeout: u8) -> Result<impl Future<Item = Vec<Device>, Error = failure::Error>, failure::Error> {
+pub fn discover(
+    search_target: ST,
+    timeout: u8,
+) -> Result<impl Future<Item = Vec<Device>, Error = failure::Error>, failure::Error> {
     Ok(future::join_all(
         discover_ips(search_target, timeout)?
             .into_iter()
-            .map(Device::from_url)
+            .map(Device::from_url),
     ))
 }

@@ -1,7 +1,10 @@
 use serde::Deserialize;
 
 #[derive(Deserialize, Default)]
-pub struct Value<T> where T: Default {
+pub struct Value<T>
+where
+    T: Default,
+{
     #[serde(default = "Default::default")]
     #[serde(rename = "$value")]
     pub value: T,

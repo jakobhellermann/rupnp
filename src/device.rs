@@ -255,7 +255,7 @@ struct UPnPError {
     faultcode: String,
     faultstring: String,
     #[serde(default = "Default::default")]
-    err_code: u16
+    err_code: u16,
 }
 impl UPnPError {
     fn err_code_description(&self) -> &str {
@@ -274,22 +274,34 @@ impl UPnPError {
             613..=699 => "Common action error. Defined by UPnP Forum Technical Committee.",
             700..=799 => "Action-specific error defined by UPnP Forum working committee.",
             800..=899 => "Action-specific error for non-standard actions. Defined by UPnP vendor.",
-            _ => "Invalid Error Code"
+            _ => "Invalid Error Code",
         }
     }
 }
 impl std::fmt::Display for UPnPError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{} Error {} ({}): {}", self.faultstring, self.err_code, self.faultcode, self.err_code_description())
+        write!(
+            f,
+            "{} Error {} ({}): {}",
+            self.faultstring,
+            self.err_code,
+            self.faultcode,
+            self.err_code_description()
+        )
     }
 }
 impl std::error::Error for UPnPError {}
 
 pub fn parse_error<T>(response: &str) -> Result<T, failure::Error> {
-    let fault_start = response.find("<s:Body>").ok_or(failure::err_msg("malformed error reponse"))? + 8;
+    let fault_start = response
+        .find("<s:Body>")
+        .ok_or(failure::err_msg("malformed error reponse"))?
+        + 8;
     let fault_end = response.rfind("</s:Body>").unwrap();
 
-    let body = response[fault_start..fault_end].replace("s:", "").replace(" xmlns=\"urn:schemas-upnp-org:control-1-0\"", "");
+    let body = response[fault_start..fault_end]
+        .replace("s:", "")
+        .replace(" xmlns=\"urn:schemas-upnp-org:control-1-0\"", "");
 
     let mut fault: UPnPError = serde_xml_rs::from_reader(body.as_bytes()).unwrap();
 
@@ -303,5 +315,9 @@ pub fn parse_error<T>(response: &str) -> Result<T, failure::Error> {
 
 pub fn urn_to_name(urn: &str) -> String {
     let mut x = urn.rsplitn(3, ':');
-    format!("{name}{version}", version=x.next().unwrap(), name=x.next().unwrap())
+    format!(
+        "{name}{version}",
+        version = x.next().unwrap(),
+        name = x.next().unwrap()
+    )
 }

@@ -9,12 +9,13 @@ use futures::{Future, Stream};
 #[serde(rename_all = "camelCase")]
 pub struct SCPD {
     #[serde(skip_deserializing)]
-    #[get = "pub"] #[set = "pub"] urn: String,
+    #[get = "pub"]
+    #[set = "pub"]
+    urn: String,
     service_state_table: Value<Vec<StateVariable>>,
     action_list: Value<Vec<Action>>,
 }
 impl SCPD {
-
     pub fn state_variables(&self) -> &Vec<StateVariable> {
         &self.service_state_table.value
     }
@@ -23,7 +24,11 @@ impl SCPD {
     }
 
     pub fn destructure(self) -> (String, Vec<StateVariable>, Vec<Action>) {
-        (self.urn, self.service_state_table.value, self.action_list.value)
+        (
+            self.urn,
+            self.service_state_table.value,
+            self.action_list.value,
+        )
     }
 }
 
@@ -73,7 +78,8 @@ pub struct Argument {
 
 impl Argument {
     pub fn related_state_variable(&self) -> &str {
-        self.related_state_variable.trim_start_matches("A_ARG_TYPE_")
+        self.related_state_variable
+            .trim_start_matches("A_ARG_TYPE_")
     }
 }
 
@@ -242,7 +248,10 @@ const fn one() -> i32 {
 }
 
 impl SCPD {
-    pub fn from_url(uri: hyper::Uri, urn: String) -> impl Future<Item = Self, Error = failure::Error> {
+    pub fn from_url(
+        uri: hyper::Uri,
+        urn: String,
+    ) -> impl Future<Item = Self, Error = failure::Error> {
         let client = hyper::Client::new();
 
         client
