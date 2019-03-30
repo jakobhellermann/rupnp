@@ -8,6 +8,7 @@ edition = "2018"
 ssdp = "0.7.0"
 serde = { version = "1.0.89", features = ["derive"]}
 serde-xml-rs = "0.3.1"
+xmltree = "0.8.0"
 
 futures = "0.1.25"
 hyper = "0.12.25"

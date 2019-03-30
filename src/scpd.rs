@@ -75,7 +75,6 @@ pub struct Argument {
     direction: Direction,
     related_state_variable: String,
 }
-
 impl Argument {
     pub fn related_state_variable(&self) -> &str {
         self.related_state_variable
@@ -117,7 +116,7 @@ pub struct StateVariable {
     data_type: DataType,
     #[get = "pub"]
     default_value: Option<String>,
-    allowed_value_list: Option<Value<Vec<String>>>, //TODO getter
+    allowed_value_list: Option<Value<Vec<String>>>,
     #[get = "pub"]
     allowed_value_range: Option<AllowedValueRange>,
     optional: Option<()>,
@@ -136,7 +135,7 @@ impl StateVariable {
         if let Some(allowed_values) = &self.allowed_value_list {
             return Some(&allowed_values.value);
         }
-        return None;
+        None
     }
 
     fn data_type_str(&self) -> &str {
@@ -153,7 +152,7 @@ impl StateVariable {
             DataType::char => "char",
             DataType::string => "&str",
             /* */
-            DataType::boolean => "bool",
+            DataType::boolean => "upnp::Bool",
             /* */
             DataType::uri => "hyper::Uri",
             _ => unimplemented!("{:?}", self),
@@ -226,8 +225,10 @@ pub enum DataType {
 #[derive(Deserialize, Debug)]
 pub struct AllowedValueRange {
     ///Inclusive lower bound
+    #[serde(default = "one")]
     minimum: i32,
     ///Inclusive upper bound.
+    #[serde(default = "one")]
     maximum: i32,
     #[serde(default = "one")]
     step: i32,
@@ -251,13 +252,12 @@ impl SCPD {
     pub fn from_url(
         uri: hyper::Uri,
         urn: String,
-    ) -> impl Future<Item = Self, Error = failure::Error> {
+    ) -> impl Future<Item = Self, Error = hyper::Error> {
         let client = hyper::Client::new();
 
         client
             .get(uri)
             .and_then(|response| response.into_body().concat2())
-            .map_err(failure::Error::from)
             .map(move |body| {
                 let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..]).unwrap();
                 scpd.urn = urn;

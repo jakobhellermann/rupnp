@@ -1,4 +1,6 @@
+use crate::service::Service;
 use crate::shared::{SpecVersion, Value};
+
 use getset::Getters;
 use serde::Deserialize;
 
@@ -77,67 +79,8 @@ pub struct Icon {
     url: String,
 }
 
-#[derive(Deserialize, Debug, Getters, Clone)]
-#[serde(rename_all = "camelCase")]
-#[get = "pub"]
-pub struct Service {
-    service_type: String,
-    service_id: String,
-    #[serde(rename = "SCPDURL")]
-    scpd_url: String,
-    #[serde(rename = "controlURL")]
-    control_url: String,
-    #[serde(rename = "eventSubURL")]
-    event_sub_url: String,
-}
-impl Service {
-    pub fn action(
-        &self,
-        ip: &str,
-        action: &str,
-        payload: &str,
-    ) -> impl Future<Item = String, Error = failure::Error> {
-        let client = hyper::Client::new();
-
-        let body = format!(
-            r#"
-            <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
-                s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
-                <s:Body>
-                    <u:{action} xmlns:u="{service}">
-                        {payload}
-                    </u:{action}>
-                </s:Body>
-            </s:Envelope>"#,
-            service = self.service_type(),
-            action = action,
-            payload = payload
-        );
-
-        let mut req = hyper::Request::new(hyper::Body::from(body));
-        *req.method_mut() = hyper::Method::POST;
-        *req.uri_mut() = format!("{}{}", ip, self.control_url()).parse().unwrap();
-        req.headers_mut().insert(
-            hyper::header::CONTENT_TYPE,
-            hyper::header::HeaderValue::from_static("xml"),
-        );
-        req.headers_mut().insert(
-            "SOAPAction",
-            format!("\"{}#{}\"", self.service_type(), action)
-                .parse()
-                .unwrap(),
-        );
-
-        client
-            .request(req)
-            .and_then(|res| res.into_body().concat2())
-            .map_err(failure::Error::from)
-            .map(|body| String::from_utf8_lossy(body.as_ref()).to_string())
-    }
-}
-
 impl Device {
-    pub fn from_url(uri: hyper::Uri) -> impl Future<Item = Self, Error = failure::Error> {
+    pub fn from_url(uri: hyper::Uri) -> impl Future<Item = Self, Error = hyper::Error> {
         let client = hyper::Client::new();
 
         let ip = format!(
@@ -149,7 +92,6 @@ impl Device {
         client
             .get(uri)
             .and_then(|response| response.into_body().concat2())
-            .map_err(failure::Error::from)
             .map(|body| {
                 let device_description: DeviceDescription =
                     serde_xml_rs::from_reader(&body[..]).unwrap();
@@ -196,16 +138,16 @@ impl Device {
                     return Some(x);
                 }
             }
-            return None;
+            None
         })
     }
 
     pub fn find_service(&self, service_type: &str) -> Option<&Service> {
         self.visit_services(|s| {
-            if s.service_type == service_type {
+            if s.service_type() == service_type {
                 return Some(s);
             }
-            return None;
+            None
         })
     }
 
@@ -228,7 +170,7 @@ impl Device {
             if device.device_type == device_type {
                 return Some(device);
             }
-            return None;
+            None
         })
     }
 
@@ -247,77 +189,4 @@ impl Device {
     pub fn print(&self) {
         self.print_inner(0);
     }
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct UPnPError {
-    faultcode: String,
-    faultstring: String,
-    #[serde(default = "Default::default")]
-    err_code: u16,
-}
-impl UPnPError {
-    fn err_code_description(&self) -> &str {
-        match self.err_code {
-            401 => "No action by that name at this service.",
-            402 => "Invalid Arguments",
-            403 => "(deprecated error code)",
-            501 => "Action failed",
-            600 => "Argument value invalid",
-            601 => "Argument Value Out of Range",
-            602 => "Optional Action Not Implemented",
-            603 => "Out of Memory",
-            604 => "Human Intervention Required",
-            605 => "String Argument Too Long",
-            606..=612 => "(error code reserved for UPnP DeviceSecurity)",
-            613..=699 => "Common action error. Defined by UPnP Forum Technical Committee.",
-            700..=799 => "Action-specific error defined by UPnP Forum working committee.",
-            800..=899 => "Action-specific error for non-standard actions. Defined by UPnP vendor.",
-            _ => "Invalid Error Code",
-        }
-    }
-}
-impl std::fmt::Display for UPnPError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(
-            f,
-            "{} Error {} ({}): {}",
-            self.faultstring,
-            self.err_code,
-            self.faultcode,
-            self.err_code_description()
-        )
-    }
-}
-impl std::error::Error for UPnPError {}
-
-pub fn parse_error<T>(response: &str) -> Result<T, failure::Error> {
-    let fault_start = response
-        .find("<s:Body>")
-        .ok_or(failure::err_msg("malformed error reponse"))?
-        + 8;
-    let fault_end = response.rfind("</s:Body>").unwrap();
-
-    let body = response[fault_start..fault_end]
-        .replace("s:", "")
-        .replace(" xmlns=\"urn:schemas-upnp-org:control-1-0\"", "");
-
-    let mut fault: UPnPError = serde_xml_rs::from_reader(body.as_bytes()).unwrap();
-
-    let errcode_start = body.find("<errorCode>").unwrap() + 11;
-    let errcode_end = body.rfind("</errorCode>").unwrap();
-
-    fault.err_code = body[errcode_start..errcode_end].parse().unwrap();
-
-    Err(failure::Error::from(fault))
-}
-
-pub fn urn_to_name(urn: &str) -> String {
-    let mut x = urn.rsplitn(3, ':');
-    format!(
-        "{name}{version}",
-        version = x.next().unwrap(),
-        name = x.next().unwrap()
-    )
 }

@@ -9,10 +9,7 @@ where
     #[serde(rename = "$value")]
     pub value: T,
 }
-impl<T: Default> std::fmt::Debug for Value<T>
-where
-    T: std::fmt::Debug,
-{
+impl<T: Default + std::fmt::Debug> std::fmt::Debug for Value<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", &self.value)
     }
