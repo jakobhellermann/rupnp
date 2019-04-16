@@ -24,6 +24,7 @@ impl SpecVersion {
     pub fn major(&self) -> u32 {
         self.major
     }
+    #[allow(unused)]
     pub fn minor(&self) -> u32 {
         self.minor
     }

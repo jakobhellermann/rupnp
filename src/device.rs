@@ -4,7 +4,7 @@ use crate::shared::{SpecVersion, Value};
 use getset::Getters;
 use serde::Deserialize;
 
-use futures::{Future, Stream};
+use futures::compat::Future01CompatExt;
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -80,7 +80,9 @@ pub struct Icon {
 }
 
 impl Device {
-    pub fn from_url(uri: hyper::Uri) -> impl Future<Item = Self, Error = hyper::Error> {
+    pub async fn from_url(uri: hyper::Uri) -> Result<Self, hyper::Error> {
+        use futures01::{Future, Stream};
+
         let client = hyper::Client::new();
 
         let ip = format!(
@@ -89,26 +91,20 @@ impl Device {
             uri.authority_part().unwrap()
         );
 
-        client
+        let body = await!(client
             .get(uri)
             .and_then(|response| response.into_body().concat2())
-            .map(|body| {
-                let device_description: DeviceDescription =
-                    serde_xml_rs::from_reader(&body[..]).unwrap();
-                assert!(
-                    device_description.spec_version.major() == 1,
-                    format!(
-                        "unable to parse spec version {}.{}",
-                        device_description.spec_version.major(),
-                        device_description.spec_version.minor()
-                    )
-                );
-                device_description.device
-            })
-            .map(move |mut device| {
-                device.ip = ip;
-                device
-            })
+            .compat())?;
+
+        let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..]).unwrap();
+
+        let spec_version = device_description.spec_version;
+        assert!(spec_version.major() == 1, "can only parse spec version 1.x");
+
+        let mut device = device_description.device;
+        device.ip = ip;
+
+        Ok(device)
     }
 
     fn visit_devices<'a, F, T>(&'a self, f: F) -> Option<T>

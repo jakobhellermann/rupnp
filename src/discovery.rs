@@ -1,6 +1,6 @@
 use crate::device::Device;
 use crate::error::Error;
-use futures::{future, Future};
+
 use ssdp::header::{HeaderMut, HeaderRef, Location, Man, MX, ST};
 use ssdp::message::{Multicast, SearchRequest};
 
@@ -20,16 +20,13 @@ pub fn discover_ips(search_target: ST, timeout: u8) -> Result<Vec<hyper::Uri>, E
     Ok(responses)
 }
 
-pub fn discover(search_target: ST, timeout: u8) -> impl Future<Item = Vec<Device>, Error = Error> {
-    let ips = match discover_ips(search_target, timeout) {
-        Ok(item) => future::ok(item),
-        Err(err) => future::err(err),
-    };
+pub async fn discover(search_target: ST, timeout: u8) -> Result<Vec<Device>, Error> {
+    let ips = discover_ips(search_target, timeout)?;
 
-    ips.map(|devices| {
-        devices
-            .into_iter()
-            .map(|device| Device::from_url(device).map_err(Error::NetworkError))
-    })
-    .and_then(future::join_all)
+    let mut devices = Vec::with_capacity(ips.len());
+    for ip in ips {
+        devices.push(await!(Device::from_url(ip)).map_err(Error::NetworkError)?);
+    }
+
+    Ok(devices)
 }

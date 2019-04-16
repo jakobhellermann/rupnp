@@ -1,28 +1,43 @@
-use futures::Future;
-use hyper::rt;
-use upnp::Error;
+#![feature(async_await, await_macro, futures_api)]
 
+use futures::prelude::*;
+
+use upnp::{Device, Error};
+
+#[allow(unused_variables)]
 fn main() {
+    hyper::rt::run(
+        async_main()
+            .map_ok(|v| println!("{:?}", v))
+            .map_err(|e| eprintln!("{}", e))
+            .boxed()
+            .compat(),
+    )
+}
+
+async fn async_main() -> Result<u8, Error> {
     let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
 
-    let f = upnp::Device::from_url(uri)
-        .map_err(Error::NetworkError)
-        .and_then(|device| {
-            let service = device
-                .find_service("schemas-upnp-org:service:RenderingControl:1")
-                .unwrap();
+    let device = await!(Device::from_url(uri).map_err(Error::NetworkError))?;
 
-            service.action(
-                &device.ip(),
-                "GetVolume",
-                "<InstanceID>0</InstanceID><Channel>Master</Channel>",
-            )
-        })
-        .map(|response| {
-            println!("{:?}", response.get_child("CurrentVolume").unwrap().text);
-        });
+    let service = device
+        .find_service("schemas-upnp-org:service:RenderingControl:1")
+        .unwrap();
 
-    rt::run(f.map_err(|e| eprintln!("{}", e)));
+    let mut response = await!(service.action(
+        &device.ip(),
+        "GetVolume",
+        "<InstanceID>0</InstanceID><Channel>Master</Channel>",
+    ))?;
+
+    let volume = response
+        .take_child("CurrentVolume")
+        .unwrap()
+        .text
+        .ok_or(Error::ParseError)?;
+    volume
+        .parse()
+        .map_err(|e| Error::InvalidResponse(failure::Error::from(e)))
 }

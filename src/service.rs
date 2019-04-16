@@ -1,8 +1,11 @@
 use crate::error::{self, Error};
-use futures::{Future, Stream};
+use futures01::{Future, Stream};
 use getset::Getters;
+use hyper::header::HeaderValue;
 use serde::Deserialize;
 use xmltree::Element;
+
+use futures::compat::Future01CompatExt;
 
 #[derive(Deserialize, Debug, Getters, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -26,12 +29,12 @@ impl Service {
         self.service_type.trim_start_matches("urn:")
     }
 
-    pub fn action(
-        &self,
-        ip: &str,
-        action: &str,
-        payload: &str,
-    ) -> impl Future<Item = Element, Error = Error> {
+    pub async fn action<'a>(
+        &'a self,
+        ip: &'a str,
+        action: &'a str,
+        payload: &'a str,
+    ) -> Result<Element, Error> {
         let client = hyper::Client::new();
 
         let body = format!(
@@ -51,7 +54,7 @@ impl Service {
 
         let mut req = hyper::Request::new(hyper::Body::from(body));
         *req.method_mut() = hyper::Method::POST;
-        *req.uri_mut() = format!("{}{}", ip, self.control_url()).parse().unwrap();
+        *req.uri_mut() = format!("{}{}", ip, self.control_url()).parse().unwrap(); // FIXME
         req.headers_mut().insert(
             hyper::header::CONTENT_TYPE,
             hyper::header::HeaderValue::from_static("xml"),
@@ -65,31 +68,55 @@ impl Service {
 
         let response_str = format!("{}Response", action);
 
-        client
+        let body = await!(client
             .request(req)
             .and_then(|res| res.into_body().concat2())
             .map_err(Error::NetworkError)
-            .map(move |body| -> Result<Element, Error> {
-                let mut element = Element::parse(body.as_ref())?;
-                let mut body = element.take_child("Body").ok_or_else(|| Error::ParseError)?;
+            .compat())?;
 
-                if let Some(fault) = body.get_child("Fault") {
-                    return match error::parse(fault) {
-                        Ok(err) => Err(Error::UPnPError(err)),
-                        Err(err) => Err(err),
-                    };
-                }
+        let mut element = Element::parse(body.as_ref())?;
+        let mut body = element
+            .take_child("Body")
+            .ok_or_else(|| Error::ParseError)?;
 
-                if let Some(response) = body.take_child(response_str) {
-                    Ok(response)
-                } else {
-                    Err(Error::ParseError)
-                }
-            })
-            .and_then(|res| match res {
-                Ok(val) => futures::future::ok(val),
-                Err(err) => futures::future::err(err),
-            })
+        if let Some(fault) = body.get_child("Fault") {
+            return match error::parse(fault) {
+                Ok(err) => Err(Error::UPnPError(err)),
+                Err(err) => Err(err),
+            };
+        }
+
+        if let Some(response) = body.take_child(response_str) {
+            Ok(response)
+        } else {
+            Err(Error::ParseError)
+        }
+    }
+
+    pub async fn subscribe<'a>(
+        &'a self,
+        ip: &'a str,
+        callback: &'a str,
+    ) -> Result<(), hyper::Error> {
+        let client = hyper::client::Client::new();
+
+        let mut req = hyper::Request::new(Default::default());
+        *req.uri_mut() = format!("{}{}", ip, self.event_sub_url()).parse().unwrap(); // FIXME
+        *req.method_mut() = hyper::Method::from_bytes(b"SUBSCRIBE").unwrap();
+        req.headers_mut().insert(
+            "CALLBACK",
+            HeaderValue::from_str(&format!("<{}>", callback)).unwrap(),
+        );
+        req.headers_mut()
+            .insert("NT", HeaderValue::from_static("upnp:event"));
+        req.headers_mut()
+            .insert("TIMEOUT", HeaderValue::from_static("Second-300"));
+
+        await!(client
+            .request(req)
+            .and_then(|res| res.into_body().concat2())
+            .map(|_chunks| {})
+            .compat())
     }
 }
 

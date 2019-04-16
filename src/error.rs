@@ -68,7 +68,7 @@ impl std::fmt::Display for UPnPError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(
             f,
-            "{} {} {}",
+            "{} {}: {}",
             self.fault_string,
             self.err_code,
             self.err_code_description()

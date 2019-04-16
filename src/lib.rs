@@ -1,3 +1,5 @@
+#![feature(async_await, await_macro, futures_api)]
+
 pub mod discovery;
 
 pub mod datatypes;
@@ -6,7 +8,6 @@ pub mod error;
 pub mod scpd;
 pub mod service;
 
-pub use datatypes::Bool;
 pub use device::Device;
 pub use error::Error;
 pub use scpd::SCPD;

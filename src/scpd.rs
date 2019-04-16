@@ -3,7 +3,8 @@ use crate::shared::Value;
 use getset::{Getters, Setters};
 use serde::Deserialize;
 
-use futures::{Future, Stream};
+use futures::compat::Future01CompatExt;
+use futures01::{Future, Stream};
 
 #[derive(Deserialize, Debug, Getters, Setters)]
 #[serde(rename_all = "camelCase")]
@@ -139,41 +140,37 @@ impl StateVariable {
     }
 
     fn data_type_str(&self) -> &str {
-        match self.data_type() {
-            DataType::ui1 => "u8",
-            DataType::ui2 => "u16",
-            DataType::ui4 => "u32",
-            DataType::ui8 => "u64",
-            DataType::i1 => "i8",
-            DataType::i2 => "i16",
-            DataType::i4 => "i32",
-            DataType::int => "i64",
-            /* */
-            DataType::char => "char",
-            DataType::string => "&str",
-            /* */
-            DataType::boolean => "upnp::Bool",
-            /* */
-            DataType::uri => "hyper::Uri",
-            _ => unimplemented!("{:?}", self),
-        }
-    }
-
-    pub fn data_type_str_input(&self) -> &str {
-        if self.allowed_values().is_some() {
-            self.name()
-        } else {
-            self.data_type_str()
-        }
-    }
-    pub fn data_type_str_output(&self) -> &str {
         if self.allowed_values().is_some() {
             self.name()
         } else {
             match self.data_type() {
+                DataType::ui1 => "u8",
+                DataType::ui2 => "u16",
+                DataType::ui4 => "u32",
+                DataType::ui8 => "u64",
+                DataType::i1 => "i8",
+                DataType::i2 => "i16",
+                DataType::i4 => "i32",
+                DataType::int => "i64",
+                /* */
+                DataType::char => "char",
                 DataType::string => "String",
-                _ => self.data_type_str(),
+                /* */
+                DataType::boolean => "upnp::datatypes::Bool",
+                /* */
+                DataType::uri => "hyper::Uri",
+                _ => unimplemented!("{:?}", self),
             }
+        }
+    }
+
+    pub fn data_type_str_input(&self) -> &str {
+        self.data_type_str()
+    }
+    pub fn data_type_str_output(&self) -> &str {
+        match self.data_type() {
+            //DataType::string => "String",
+            _ => self.data_type_str(),
         }
     }
 }
@@ -249,19 +246,16 @@ const fn one() -> i32 {
 }
 
 impl SCPD {
-    pub fn from_url(
-        uri: hyper::Uri,
-        urn: String,
-    ) -> impl Future<Item = Self, Error = hyper::Error> {
+    pub async fn from_url(uri: hyper::Uri, urn: String) -> Result<Self, hyper::Error> {
         let client = hyper::Client::new();
 
-        client
+        let body = await!(client
             .get(uri)
             .and_then(|response| response.into_body().concat2())
-            .map(move |body| {
-                let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..]).unwrap();
-                scpd.urn = urn;
-                scpd
-            })
+            .compat())?;
+
+        let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..]).unwrap();
+        scpd.urn = urn;
+        Ok(scpd)
     }
 }
