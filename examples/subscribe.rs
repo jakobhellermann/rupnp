@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro, futures_api)]
+#![feature(async_await, await_macro)]
 
 use futures::prelude::*;
 use futures01::{Future, Stream};
@@ -6,8 +6,6 @@ use futures01::{Future, Stream};
 use hyper::rt;
 use hyper::{service::service_fn_ok, Server};
 use hyper::{Body, Request, Response};
-
-use upnp::Error;
 
 fn main() {
     rt::run(subscribe().map_err(|e| eprintln!("{}", e)).boxed().compat());
@@ -19,14 +17,12 @@ async fn subscribe() -> Result<(), upnp::Error> {
         .parse()
         .unwrap();
 
-    let device = await!(upnp::Device::from_url(uri).map_err(Error::NetworkError))?;
+    let device = await!(upnp::Device::from_url(uri))?;
     let service = device
         .find_service("schemas-upnp-org:service:AVTransport:1")
         .unwrap();
 
-    await!(service
-        .subscribe(&device.ip(), "http://192.168.2.91:3000")
-        .map_err(Error::NetworkError))
+    await!(service.subscribe(&device.ip(), "http://192.168.2.91:3000"))
 }
 
 fn callback(req: Request<Body>) -> Response<Body> {

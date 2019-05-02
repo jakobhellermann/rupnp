@@ -1,5 +1,5 @@
 use crate::shared::Value;
-
+use crate::Error;
 use getset::{Getters, Setters};
 use serde::Deserialize;
 
@@ -246,15 +246,16 @@ const fn one() -> i32 {
 }
 
 impl SCPD {
-    pub async fn from_url(uri: hyper::Uri, urn: String) -> Result<Self, hyper::Error> {
+    pub async fn from_url(uri: hyper::Uri, urn: String) -> Result<Self, Error> {
         let client = hyper::Client::new();
 
         let body = await!(client
             .get(uri)
             .and_then(|response| response.into_body().concat2())
+            .map_err(Error::NetworkError)
             .compat())?;
 
-        let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..]).unwrap();
+        let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..])?;
         scpd.urn = urn;
         Ok(scpd)
     }

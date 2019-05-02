@@ -1,11 +1,11 @@
 use crate::error::{self, Error};
+use failure::ResultExt;
+use futures::compat::Future01CompatExt;
 use futures01::{Future, Stream};
 use getset::Getters;
 use hyper::header::HeaderValue;
 use serde::Deserialize;
 use xmltree::Element;
-
-use futures::compat::Future01CompatExt;
 
 #[derive(Deserialize, Debug, Getters, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -54,16 +54,14 @@ impl Service {
 
         let mut req = hyper::Request::new(hyper::Body::from(body));
         *req.method_mut() = hyper::Method::POST;
-        *req.uri_mut() = format!("{}{}", ip, self.control_url()).parse().unwrap(); // FIXME
+        *req.uri_mut() = assemble_url(ip, self.control_url())?;
         req.headers_mut().insert(
             hyper::header::CONTENT_TYPE,
             hyper::header::HeaderValue::from_static("xml"),
         );
         req.headers_mut().insert(
             "SOAPAction",
-            format!("\"{}#{}\"", self.service_type(), action)
-                .parse()
-                .unwrap(),
+            header_value(&format!("\"{}#{}\"", self.service_type(), action))?,
         );
 
         let response_str = format!("{}Response", action);
@@ -93,20 +91,14 @@ impl Service {
         }
     }
 
-    pub async fn subscribe<'a>(
-        &'a self,
-        ip: &'a str,
-        callback: &'a str,
-    ) -> Result<(), hyper::Error> {
+    pub async fn subscribe<'a>(&'a self, ip: &'a str, callback: &'a str) -> Result<(), Error> {
         let client = hyper::client::Client::new();
 
         let mut req = hyper::Request::new(Default::default());
-        *req.uri_mut() = format!("{}{}", ip, self.event_sub_url()).parse().unwrap(); // FIXME
-        *req.method_mut() = hyper::Method::from_bytes(b"SUBSCRIBE").unwrap();
-        req.headers_mut().insert(
-            "CALLBACK",
-            HeaderValue::from_str(&format!("<{}>", callback)).unwrap(),
-        );
+        *req.uri_mut() = assemble_url(ip, self.event_sub_url())?;
+        *req.method_mut() = hyper::Method::from_bytes(b"SUBSCRIBE").expect("can not fail");
+        req.headers_mut()
+            .insert("CALLBACK", header_value(&format!("<{}>", callback))?);
         req.headers_mut()
             .insert("NT", HeaderValue::from_static("upnp:event"));
         req.headers_mut()
@@ -116,15 +108,29 @@ impl Service {
             .request(req)
             .and_then(|res| res.into_body().concat2())
             .map(|_chunks| {})
+            .map_err(Error::NetworkError)
             .compat())
     }
 }
 
-pub fn urn_to_name(urn: &str) -> String {
+fn header_value(s: &str) -> Result<hyper::http::header::HeaderValue, Error> {
+    s.parse::<hyper::header::HeaderValue>()
+        .with_context(|e| format!("invalid header: {}", e))
+        .map_err(|e| Error::InvalidArguments(failure::Error::from(e)))
+}
+
+fn assemble_url(ip: &str, rest: &str) -> Result<hyper::Uri, Error> {
+    format!("{}{}", ip, rest)
+        .parse::<hyper::Uri>()
+        .with_context(|e| format!("invalid url: {}", e))
+        .map_err(|e| Error::InvalidArguments(failure::Error::from(e)))
+}
+
+pub fn urn_to_name(urn: &str) -> Option<String> {
     let mut x = urn.rsplitn(3, ':');
-    format!(
+    Some(format!(
         "{name}{version}",
-        version = x.next().unwrap(),
-        name = x.next().unwrap()
-    )
+        version = x.next()?,
+        name = x.next()?
+    ))
 }

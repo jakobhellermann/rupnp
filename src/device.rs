@@ -1,6 +1,6 @@
 use crate::service::Service;
 use crate::shared::{SpecVersion, Value};
-
+use crate::Error;
 use getset::Getters;
 use serde::Deserialize;
 
@@ -80,23 +80,25 @@ pub struct Icon {
 }
 
 impl Device {
-    pub async fn from_url(uri: hyper::Uri) -> Result<Self, hyper::Error> {
+    pub async fn from_url(uri: hyper::Uri) -> Result<Self, Error> {
         use futures01::{Future, Stream};
 
         let client = hyper::Client::new();
 
         let ip = format!(
             "{}://{}",
-            uri.scheme_str().unwrap(),
-            uri.authority_part().unwrap()
+            uri.scheme_str().unwrap_or("http"),
+            uri.authority_part()
+                .expect("uri contained no authority part") //FIXME
         );
 
         let body = await!(client
             .get(uri)
             .and_then(|response| response.into_body().concat2())
+            .map_err(Error::NetworkError)
             .compat())?;
 
-        let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..]).unwrap();
+        let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..])?;
 
         let spec_version = device_description.spec_version;
         assert!(spec_version.major() == 1, "can only parse spec version 1.x");

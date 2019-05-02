@@ -14,10 +14,17 @@ pub enum Error {
     NetworkError(#[cause] hyper::Error),
     #[fail(display = "An error occurred trying to discover devices: {}", _0)]
     SSDPError(#[cause] SSDPError),
+    #[fail(display = "Invalid Arguments: {}", _0)]
+    InvalidArguments(#[cause] failure::Error),
 }
 
 impl From<xmltree::ParseError> for Error {
-    fn from(_error: xmltree::ParseError) -> Self {
+    fn from(_: xmltree::ParseError) -> Self {
+        Error::ParseError
+    }
+}
+impl From<serde_xml_rs::Error> for Error {
+    fn from(_: serde_xml_rs::Error) -> Self {
         Error::ParseError
     }
 }
@@ -26,7 +33,7 @@ impl From<xmltree::ParseError> for Error {
 pub struct SSDPError(Mutex<ssdp::SSDPError>);
 impl std::fmt::Display for SSDPError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let err = self.0.lock().unwrap();
+        let err = self.0.lock().expect("ssdp error lock was poisoned");
         write!(f, "{}", err)
     }
 }

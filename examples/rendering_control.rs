@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro, futures_api)]
+#![feature(async_await, await_macro)]
 
 use futures::prelude::*;
 
@@ -20,7 +20,7 @@ async fn async_main() -> Result<u8, Error> {
         .parse()
         .unwrap();
 
-    let device = await!(Device::from_url(uri).map_err(Error::NetworkError))?;
+    let device = await!(Device::from_url(uri))?;
 
     let service = device
         .find_service("schemas-upnp-org:service:RenderingControl:1")

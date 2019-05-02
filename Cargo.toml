@@ -6,11 +6,11 @@ edition = "2018"
 
 [dependencies]
 ssdp = "0.7.0"
-serde = { version = "1.0.89", features = ["derive"]}
+serde = { version = "1.0.90", features = ["derive"] }
 serde-xml-rs = "0.3.1"
 xmltree = "0.8.0"
-futures-preview = { version = "0.3.0-alpha.13", features = ["io-compat"] }
+futures-preview = { version = "0.3.0-alpha.15", features = ["io-compat"] }
 futures01 = { package = "futures", version = "0.1" }
-hyper = "0.12.25"
+hyper = "0.12.28"
 failure = "0.1.5"
 getset = "0.0.7"
