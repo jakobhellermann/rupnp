@@ -2,9 +2,9 @@
 #![recursion_limit = "128"]
 
 use ssdp::search::SearchTarget;
+use std::time::Duration;
 use upnp::discovery;
 use upnp::Device;
-use std::time::Duration;
 
 #[runtime::main(runtime_tokio::Tokio)]
 async fn main() -> Result<(), upnp::Error> {
