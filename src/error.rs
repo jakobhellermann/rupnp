@@ -1,6 +1,6 @@
 use failure::Fail;
-use std::sync::Mutex;
 use xmltree::Element;
+use std::fmt;
 
 #[derive(Fail, Debug)]
 pub enum Error {
@@ -13,7 +13,7 @@ pub enum Error {
     #[fail(display = "An error occurred trying to connect to device: {}", _0)]
     NetworkError(#[cause] hyper::Error),
     #[fail(display = "An error occurred trying to discover devices: {}", _0)]
-    SSDPError(#[cause] SSDPError),
+    SSDPError(#[cause] ssdp::SSDPError),
     #[fail(display = "Invalid Arguments: {}", _0)]
     InvalidArguments(#[cause] failure::Error),
 }
@@ -29,18 +29,9 @@ impl From<serde_xml_rs::Error> for Error {
     }
 }
 
-#[derive(Debug, Fail)]
-pub struct SSDPError(Mutex<ssdp::SSDPError>);
-impl std::fmt::Display for SSDPError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        let err = self.0.lock().expect("ssdp error lock was poisoned");
-        write!(f, "{}", err)
-    }
-}
-
 impl From<ssdp::SSDPError> for Error {
     fn from(error: ssdp::SSDPError) -> Error {
-        Error::SSDPError(SSDPError(Mutex::new(error)))
+        Error::SSDPError(error)
     }
 }
 
@@ -71,8 +62,8 @@ impl UPnPError {
         }
     }
 }
-impl std::fmt::Display for UPnPError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Display for UPnPError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "{} {}: {}",

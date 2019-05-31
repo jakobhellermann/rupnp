@@ -5,7 +5,7 @@ authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-ssdp = "0.7.0"
+ssdp = { path = "../ssdp" }
 serde = { version = "1.0.91", features = ["derive"] }
 serde-xml-rs = "0.3.1"
 xmltree = "0.8.0"
