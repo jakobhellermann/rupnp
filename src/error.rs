@@ -44,7 +44,7 @@ impl From<ssdp::SSDPError> for Error {
     }
 }
 
-#[derive(Fail, Debug, serde::Serialize)]
+#[derive(Fail, Debug)]
 pub struct UPnPError {
     fault_code: String,
     fault_string: String,

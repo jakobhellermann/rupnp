@@ -66,11 +66,12 @@ impl Service {
 
         let response_str = format!("{}Response", action);
 
-        let body = await!(client
+        let body = client
             .request(req)
             .and_then(|res| res.into_body().concat2())
             .map_err(Error::NetworkError)
-            .compat())?;
+            .compat()
+            .await?;
 
         let mut element = Element::parse(body.as_ref())?;
         let mut body = element
@@ -104,26 +105,27 @@ impl Service {
         req.headers_mut()
             .insert("TIMEOUT", HeaderValue::from_static("Second-300"));
 
-        await!(client
+        client
             .request(req)
             .and_then(|res| res.into_body().concat2())
             .map(|_chunks| {})
             .map_err(Error::NetworkError)
-            .compat())
+            .compat()
+            .await
     }
 }
 
 fn header_value(s: &str) -> Result<hyper::http::header::HeaderValue, Error> {
     s.parse::<hyper::header::HeaderValue>()
         .with_context(|e| format!("invalid header: {}", e))
-        .map_err(|e| Error::InvalidArguments(failure::Error::from(e)))
+        .map_err(|e| Error::InvalidArguments(e.into()))
 }
 
 fn assemble_url(ip: &str, rest: &str) -> Result<hyper::Uri, Error> {
     format!("{}{}", ip, rest)
         .parse::<hyper::Uri>()
         .with_context(|e| format!("invalid url: {}", e))
-        .map_err(|e| Error::InvalidArguments(failure::Error::from(e)))
+        .map_err(|e| Error::InvalidArguments(e.into()))
 }
 
 pub fn urn_to_name(urn: &str) -> Option<String> {

@@ -20,13 +20,12 @@ pub fn discover_ips(search_target: ST, timeout: u8) -> Result<Vec<hyper::Uri>, E
     Ok(responses)
 }
 
-
 pub async fn discover(search_target: ST, timeout: u8) -> Result<Vec<Device>, Error> {
     let ips = discover_ips(search_target, timeout)?;
 
     let mut devices = Vec::with_capacity(ips.len());
     for ip in ips {
-        devices.push(await!(Device::from_url(ip))?);
+        devices.push(Device::from_url(ip).await?);
     }
 
     Ok(devices)

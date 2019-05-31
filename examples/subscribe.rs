@@ -1,28 +1,34 @@
 #![feature(async_await, await_macro)]
+#![recursion_limit = "128"]
 
-use futures::prelude::*;
+use futures::compat::Future01CompatExt;
 use futures01::{Future, Stream};
-
 use hyper::rt;
 use hyper::{service::service_fn_ok, Server};
 use hyper::{Body, Request, Response};
+use upnp::Device;
 
-fn main() {
-    rt::run(subscribe().map_err(|e| eprintln!("{}", e)).boxed().compat());
-    rt::run(server().map_err(|e| eprintln!("{}", e)));
-}
+#[runtime::main(runtime_tokio::Tokio)]
+async fn main() -> Result<(), upnp::Error> {
+    let addr: std::net::SocketAddr = ([192, 168, 2, 91], 3000).into();
+    let addr_str = format!("http://{}", addr);
 
-async fn subscribe() -> Result<(), upnp::Error> {
     let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
-
-    let device = await!(upnp::Device::from_url(uri))?;
+    let device = Device::from_url(uri).await?;
     let service = device
         .find_service("schemas-upnp-org:service:AVTransport:1")
         .unwrap();
+    service.subscribe(&device.ip(), &addr_str).await?;
 
-    await!(service.subscribe(&device.ip(), "http://192.168.2.91:3000"))
+    Server::bind(&addr)
+        .serve(|| service_fn_ok(callback))
+        .map_err(upnp::Error::NetworkError)
+        .compat()
+        .await?;
+
+    Ok(())
 }
 
 fn callback(req: Request<Body>) -> Response<Body> {
@@ -37,10 +43,4 @@ fn callback(req: Request<Body>) -> Response<Body> {
     );
 
     Response::default()
-}
-
-fn server() -> impl futures01::Future<Item = (), Error = hyper::Error> {
-    let addr = ([192, 168, 2, 91], 3000).into();
-
-    Server::bind(&addr).serve(|| service_fn_ok(callback))
 }

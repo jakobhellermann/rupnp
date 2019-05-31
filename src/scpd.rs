@@ -249,11 +249,12 @@ impl SCPD {
     pub async fn from_url(uri: hyper::Uri, urn: String) -> Result<Self, Error> {
         let client = hyper::Client::new();
 
-        let body = await!(client
+        let body = client
             .get(uri)
             .and_then(|response| response.into_body().concat2())
             .map_err(Error::NetworkError)
-            .compat())?;
+            .compat()
+            .await?;
 
         let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..])?;
         scpd.urn = urn;

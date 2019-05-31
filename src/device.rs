@@ -92,11 +92,12 @@ impl Device {
                 .expect("uri contained no authority part") //FIXME
         );
 
-        let body = await!(client
+        let body = client
             .get(uri)
             .and_then(|response| response.into_body().concat2())
             .map_err(Error::NetworkError)
-            .compat())?;
+            .compat()
+            .await?;
 
         let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..])?;
 
