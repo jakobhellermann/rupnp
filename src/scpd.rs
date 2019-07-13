@@ -168,10 +168,7 @@ impl StateVariable {
         self.data_type_str()
     }
     pub fn data_type_str_output(&self) -> &str {
-        match self.data_type() {
-            //DataType::string => "String",
-            _ => self.data_type_str(),
-        }
+        self.data_type_str()
     }
 }
 

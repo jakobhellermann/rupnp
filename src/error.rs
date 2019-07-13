@@ -1,6 +1,6 @@
 use failure::Fail;
-use xmltree::Element;
 use std::fmt;
+use xmltree::Element;
 
 #[derive(Fail, Debug)]
 pub enum Error {

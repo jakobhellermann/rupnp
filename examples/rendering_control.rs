@@ -2,6 +2,13 @@
 
 use upnp::{Device, Error};
 
+/*
+
+
+
+
+*/
+
 #[runtime::main(runtime_tokio::Tokio)]
 async fn main() -> Result<(), Error> {
     let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
@@ -9,14 +16,15 @@ async fn main() -> Result<(), Error> {
         .unwrap();
 
     let device = Device::from_url(uri).await?;
+    let spec = device.description();
 
-    let service = device
+    let service = spec
         .find_service("schemas-upnp-org:service:RenderingControl:1")
         .unwrap();
 
     let mut response = service
         .action(
-            &device.ip(),
+            device.ip().to_owned(),
             "GetVolume",
             "<InstanceID>0</InstanceID><Channel>Master</Channel>",
         )

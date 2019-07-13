@@ -31,7 +31,7 @@ impl Service {
 
     pub async fn action<'a>(
         &'a self,
-        ip: &'a str,
+        ip: hyper::Uri,
         action: &'a str,
         payload: &'a str,
     ) -> Result<Element, Error> {
@@ -54,7 +54,7 @@ impl Service {
 
         let mut req = hyper::Request::new(hyper::Body::from(body));
         *req.method_mut() = hyper::Method::POST;
-        *req.uri_mut() = assemble_url(ip, self.control_url())?;
+        *req.uri_mut() = assemble_url(ip, self.control_url());
         req.headers_mut().insert(
             hyper::header::CONTENT_TYPE,
             hyper::header::HeaderValue::from_static("xml"),
@@ -92,11 +92,11 @@ impl Service {
         }
     }
 
-    pub async fn subscribe<'a>(&'a self, ip: &'a str, callback: &'a str) -> Result<(), Error> {
+    pub async fn subscribe<'a>(&'a self, ip: hyper::Uri, callback: &'a str) -> Result<(), Error> {
         let client = hyper::client::Client::new();
 
         let mut req = hyper::Request::new(Default::default());
-        *req.uri_mut() = assemble_url(ip, self.event_sub_url())?;
+        *req.uri_mut() = assemble_url(ip, self.event_sub_url());
         *req.method_mut() = hyper::Method::from_bytes(b"SUBSCRIBE").expect("can not fail");
         req.headers_mut()
             .insert("CALLBACK", header_value(&format!("<{}>", callback))?);
@@ -121,11 +121,13 @@ fn header_value(s: &str) -> Result<hyper::http::header::HeaderValue, Error> {
         .map_err(|e| Error::InvalidArguments(e.into()))
 }
 
-fn assemble_url(ip: &str, rest: &str) -> Result<hyper::Uri, Error> {
-    format!("{}{}", ip, rest)
-        .parse::<hyper::Uri>()
-        .with_context(|e| format!("invalid url: {}", e))
-        .map_err(|e| Error::InvalidArguments(e.into()))
+fn assemble_url(ip: hyper::Uri, rest: &str) -> hyper::Uri {
+    let mut parts = ip.into_parts();
+    parts.path_and_query = Some(
+        hyper::http::uri::PathAndQuery::from_shared(rest.into())
+            .expect("url part assemble logic does not work"),
+    );
+    hyper::Uri::from_parts(parts).expect("url part assemble logic does not work")
 }
 
 pub fn urn_to_name(urn: &str) -> Option<String> {

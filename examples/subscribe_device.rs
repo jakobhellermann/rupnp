@@ -18,9 +18,10 @@ async fn main() -> Result<(), upnp::Error> {
         .unwrap();
     let device = Device::from_url(uri).await?;
     let service = device
+        .description()
         .find_service("schemas-upnp-org:service:AVTransport:1")
         .unwrap();
-    service.subscribe(&device.ip(), &addr_str).await?;
+    service.subscribe(device.ip().to_owned(), &addr_str).await?;
 
     Server::bind(&addr)
         .serve(|| service_fn_ok(callback))

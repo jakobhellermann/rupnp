@@ -1,21 +1,60 @@
 use crate::service::Service;
 use crate::shared::{SpecVersion, Value};
 use crate::Error;
+use futures::compat::Future01CompatExt;
 use getset::Getters;
 use serde::Deserialize;
 
-use futures::compat::Future01CompatExt;
+#[derive(Debug)]
+pub struct Device {
+    ip: hyper::Uri,
+    device_spec: DeviceSpec,
+}
+
+impl Device {
+    pub fn ip(&self) -> &hyper::Uri {
+        &self.ip
+    }
+    pub fn description(&self) -> &DeviceSpec {
+        &self.device_spec
+    }
+
+    pub async fn from_url(ip: hyper::Uri) -> Result<Self, Error> {
+        use futures01::{Future, Stream};
+
+        let client = hyper::Client::new();
+
+        let body = client
+            .get(ip.clone())
+            .and_then(|response| response.into_body().concat2())
+            .map_err(Error::NetworkError)
+            .compat()
+            .await?;
+
+        let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..])?;
+
+        assert!(
+            device_description.spec_version.major() == 1,
+            "can only parse spec version 1.x"
+        );
+
+        Ok(Device {
+            ip,
+            device_spec: device_description.device,
+        })
+    }
+}
 
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 struct DeviceDescription {
     spec_version: SpecVersion,
-    device: Device,
+    device: DeviceSpec,
 }
 
 #[derive(Deserialize, Debug, Getters)]
 #[serde(rename_all = "camelCase")]
-pub struct Device {
+pub struct DeviceSpec {
     #[serde(default = "String::new")]
     #[get = "pub"]
     ip: String,
@@ -50,17 +89,17 @@ pub struct Device {
     #[serde(default = "Default::default")]
     service_list: Value<Vec<Service>>,
     #[serde(default = "Default::default")]
-    device_list: Value<Vec<Device>>,
+    device_list: Value<Vec<DeviceSpec>>,
     #[serde(rename = "presentationURL")]
     #[get = "pub"]
     presentation_url: Option<String>,
 }
 
-impl Device {
+impl DeviceSpec {
     pub fn services(&self) -> &Vec<Service> {
         &self.service_list.value
     }
-    pub fn devices(&self) -> &Vec<Device> {
+    pub fn devices(&self) -> &Vec<DeviceSpec> {
         &self.device_list.value
     }
     pub fn icons(&self) -> &Vec<Icon> {
@@ -79,40 +118,10 @@ pub struct Icon {
     url: String,
 }
 
-impl Device {
-    pub async fn from_url(uri: hyper::Uri) -> Result<Self, Error> {
-        use futures01::{Future, Stream};
-
-        let client = hyper::Client::new();
-
-        let ip = format!(
-            "{}://{}",
-            uri.scheme_str().unwrap_or("http"),
-            uri.authority_part()
-                .expect("uri contained no authority part") //FIXME
-        );
-
-        let body = client
-            .get(uri)
-            .and_then(|response| response.into_body().concat2())
-            .map_err(Error::NetworkError)
-            .compat()
-            .await?;
-
-        let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..])?;
-
-        let spec_version = device_description.spec_version;
-        assert!(spec_version.major() == 1, "can only parse spec version 1.x");
-
-        let mut device = device_description.device;
-        device.ip = ip;
-
-        Ok(device)
-    }
-
+impl DeviceSpec {
     fn visit_devices<'a, F, T>(&'a self, f: F) -> Option<T>
     where
-        F: Fn(&'a Device) -> Option<T> + Copy,
+        F: Fn(&'a DeviceSpec) -> Option<T> + Copy,
     {
         if let Some(x) = f(&self) {
             return Some(x);
@@ -164,7 +173,7 @@ impl Device {
         acc
     }
 
-    pub fn find_device(&self, device_type: &str) -> Option<&Device> {
+    pub fn find_device(&self, device_type: &str) -> Option<&DeviceSpec> {
         self.visit_devices(|device| {
             if device.device_type == device_type {
                 return Some(device);
