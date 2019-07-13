@@ -35,6 +35,12 @@ impl From<ssdp::SSDPError> for Error {
     }
 }
 
+impl From<hyper::Error> for Error {
+    fn from(error: hyper::Error) -> Error {
+        Error::NetworkError(error)
+    }
+}
+
 #[derive(Fail, Debug)]
 pub struct UPnPError {
     fault_code: String,

@@ -1,7 +1,6 @@
 use crate::error::{self, Error};
 use failure::ResultExt;
-use futures::compat::Future01CompatExt;
-use futures01::{Future, Stream};
+use futures::prelude::*;
 use getset::Getters;
 use hyper::header::HeaderValue;
 use serde::Deserialize;
@@ -66,12 +65,8 @@ impl Service {
 
         let response_str = format!("{}Response", action);
 
-        let body = client
-            .request(req)
-            .and_then(|res| res.into_body().concat2())
-            .map_err(Error::NetworkError)
-            .compat()
-            .await?;
+        let res = client.request(req).await?;
+        let body = res.into_body().try_concat().await?;
 
         let mut element = Element::parse(body.as_ref())?;
         let mut body = element
@@ -105,13 +100,12 @@ impl Service {
         req.headers_mut()
             .insert("TIMEOUT", HeaderValue::from_static("Second-300"));
 
-        client
-            .request(req)
-            .and_then(|res| res.into_body().concat2())
-            .map(|_chunks| {})
-            .map_err(Error::NetworkError)
-            .compat()
-            .await
+        let res = client.request(req).await?;
+        let _body = res.into_body().try_concat().await?;
+
+        dbg!(_body);
+
+        Ok(())
     }
 }
 

@@ -2,9 +2,7 @@ use crate::shared::Value;
 use crate::Error;
 use getset::{Getters, Setters};
 use serde::Deserialize;
-
-use futures::compat::Future01CompatExt;
-use futures01::{Future, Stream};
+use futures::prelude::*;
 
 #[derive(Deserialize, Debug, Getters, Setters)]
 #[serde(rename_all = "camelCase")]
@@ -246,12 +244,8 @@ impl SCPD {
     pub async fn from_url(uri: hyper::Uri, urn: String) -> Result<Self, Error> {
         let client = hyper::Client::new();
 
-        let body = client
-            .get(uri)
-            .and_then(|response| response.into_body().concat2())
-            .map_err(Error::NetworkError)
-            .compat()
-            .await?;
+        let res = client.get(uri).await?;
+        let body = res.into_body().try_concat().await?;
 
         let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..])?;
         scpd.urn = urn;

@@ -1,7 +1,7 @@
 use crate::service::Service;
 use crate::shared::{SpecVersion, Value};
 use crate::Error;
-use futures::compat::Future01CompatExt;
+use futures::prelude::*;
 use getset::Getters;
 use serde::Deserialize;
 
@@ -20,16 +20,10 @@ impl Device {
     }
 
     pub async fn from_url(ip: hyper::Uri) -> Result<Self, Error> {
-        use futures01::{Future, Stream};
-
         let client = hyper::Client::new();
 
-        let body = client
-            .get(ip.clone())
-            .and_then(|response| response.into_body().concat2())
-            .map_err(Error::NetworkError)
-            .compat()
-            .await?;
+        let res = client.get(ip.clone()).await?;
+        let body = res.into_body().try_concat().await?;
 
         let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..])?;
 
