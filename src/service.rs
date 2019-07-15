@@ -8,24 +8,27 @@ use xmltree::Element;
 
 #[derive(Deserialize, Debug, Getters, Clone)]
 #[serde(rename_all = "camelCase")]
+#[get = "pub"]
 pub struct Service {
     service_type: String,
-    #[get = "pub"]
     service_id: String,
     #[serde(rename = "SCPDURL")]
-    #[get = "pub"]
-    scpd_url: String,
+    scpd_endpoint: String,
     #[serde(rename = "controlURL")]
-    #[get = "pub"]
-    control_url: String,
+    control_endpoint: String,
     #[serde(rename = "eventSubURL")]
-    #[get = "pub"]
-    event_sub_url: String,
+    event_sub_endpoint: String,
 }
 
 impl Service {
-    pub fn service_type(&self) -> &str {
-        self.service_type.trim_start_matches("urn:")
+    pub fn control_url(&self, ip: hyper::Uri) -> hyper::Uri {
+        assemble_url(ip, &self.control_endpoint)
+    }
+    pub fn scpd_url(&self, ip: hyper::Uri) -> hyper::Uri {
+        assemble_url(ip, &self.scpd_endpoint)
+    }
+    pub fn event_sub_url(&self, ip: hyper::Uri) -> hyper::Uri {
+        assemble_url(ip, &self.event_sub_endpoint)
     }
 
     pub async fn action<'a>(
@@ -41,7 +44,7 @@ impl Service {
             <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
                 s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
                 <s:Body>
-                    <u:{action} xmlns:u="urn:{service}">
+                    <u:{action} xmlns:u="{service}">
                         {payload}
                     </u:{action}>
                 </s:Body>
@@ -53,7 +56,7 @@ impl Service {
 
         let mut req = hyper::Request::new(hyper::Body::from(body));
         *req.method_mut() = hyper::Method::POST;
-        *req.uri_mut() = assemble_url(ip, self.control_url());
+        *req.uri_mut() = self.control_url(ip);
         req.headers_mut().insert(
             hyper::header::CONTENT_TYPE,
             hyper::header::HeaderValue::from_static("xml"),
@@ -91,7 +94,7 @@ impl Service {
         let client = hyper::client::Client::new();
 
         let mut req = hyper::Request::new(Default::default());
-        *req.uri_mut() = assemble_url(ip, self.event_sub_url());
+        *req.uri_mut() = self.event_sub_url(ip);
         *req.method_mut() = hyper::Method::from_bytes(b"SUBSCRIBE").expect("can not fail");
         req.headers_mut()
             .insert("CALLBACK", header_value(&format!("<{}>", callback))?);
@@ -100,10 +103,7 @@ impl Service {
         req.headers_mut()
             .insert("TIMEOUT", HeaderValue::from_static("Second-300"));
 
-        let res = client.request(req).await?;
-        let _body = res.into_body().try_concat().await?;
-
-        dbg!(_body);
+        let _ = client.request(req).await?;
 
         Ok(())
     }

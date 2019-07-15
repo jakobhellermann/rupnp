@@ -1,14 +1,11 @@
-#![feature(async_await, await_macro)]
-#![recursion_limit = "128"]
+#![feature(async_await)]
 
-use futures::compat::Future01CompatExt;
-use futures01::{Future, Stream};
-use hyper::rt;
-use hyper::{service::service_fn_ok, Server};
-use hyper::{Body, Request, Response};
+use futures::prelude::*;
+use hyper::service::{make_service_fn, service_fn};
+use hyper::{Server, Body, Request, Response};
 use upnp::Device;
 
-#[runtime::main(runtime_tokio::Tokio)]
+#[hyper::rt::main]
 async fn main() -> Result<(), upnp::Error> {
     let addr: std::net::SocketAddr = ([192, 168, 2, 91], 3000).into();
     let addr_str = format!("http://{}", addr);
@@ -24,24 +21,18 @@ async fn main() -> Result<(), upnp::Error> {
     service.subscribe(device.ip().to_owned(), &addr_str).await?;
 
     Server::bind(&addr)
-        .serve(|| service_fn_ok(callback))
+        .serve(make_service_fn(|_| async { Ok::<_, hyper::Error>(service_fn(callback)) } ))
         .map_err(upnp::Error::NetworkError)
-        .compat()
         .await?;
 
     Ok(())
 }
 
-fn callback(req: Request<Body>) -> Response<Body> {
-    rt::spawn(
-        req.into_body()
-            .concat2()
-            .map(|body| {
-                let body = String::from_utf8_lossy(&body);
-                println!("{}", body);
-            })
-            .map_err(|e| eprintln!("{}", e)),
-    );
+async fn callback(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
+    let body = req.into_body()
+        .try_concat().await?;
+    let body = String::from_utf8_lossy(body.as_ref());
+    println!("{}", body);
 
-    Response::default()
+    Ok(Response::default())
 }

@@ -4,6 +4,8 @@ use getset::{Getters, Setters};
 use serde::Deserialize;
 use futures::prelude::*;
 
+pub mod datatypes;
+
 #[derive(Deserialize, Debug, Getters, Setters)]
 #[serde(rename_all = "camelCase")]
 pub struct SCPD {
@@ -28,6 +30,17 @@ impl SCPD {
             self.service_state_table.value,
             self.action_list.value,
         )
+    }
+
+    pub async fn from_url(uri: hyper::Uri, urn: String) -> Result<Self, Error> {
+        let client = hyper::Client::new();
+
+        let res = client.get(uri).await?;
+        let body = res.into_body().try_concat().await?;
+
+        let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..])?;
+        scpd.urn = urn;
+        Ok(scpd)
     }
 }
 
@@ -137,7 +150,7 @@ impl StateVariable {
         None
     }
 
-    fn data_type_str(&self) -> &str {
+    pub fn datatype_input(&self) -> &str {
         if self.allowed_values().is_some() {
             self.name()
         } else {
@@ -154,7 +167,7 @@ impl StateVariable {
                 DataType::char => "char",
                 DataType::string => "String",
                 /* */
-                DataType::boolean => "upnp::datatypes::Bool",
+                DataType::boolean => "upnp::scpd::datatypes::Bool",
                 /* */
                 DataType::uri => "hyper::Uri",
                 _ => unimplemented!("{:?}", self),
@@ -162,11 +175,11 @@ impl StateVariable {
         }
     }
 
-    pub fn data_type_str_input(&self) -> &str {
-        self.data_type_str()
-    }
-    pub fn data_type_str_output(&self) -> &str {
-        self.data_type_str()
+    pub fn datatype_output(&self) -> &str {
+        match self.data_type() {
+            DataType::boolean => "bool",
+            _ => self.datatype_input()
+        }
     }
 }
 
@@ -238,17 +251,4 @@ impl AllowedValueRange {
 }
 const fn one() -> i32 {
     1
-}
-
-impl SCPD {
-    pub async fn from_url(uri: hyper::Uri, urn: String) -> Result<Self, Error> {
-        let client = hyper::Client::new();
-
-        let res = client.get(uri).await?;
-        let body = res.into_body().try_concat().await?;
-
-        let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..])?;
-        scpd.urn = urn;
-        Ok(scpd)
-    }
 }

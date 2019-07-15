@@ -1,5 +1,6 @@
-use crate::service::Service;
+use crate::service:: Service;
 use crate::shared::{SpecVersion, Value};
+use log::trace;
 use crate::Error;
 use futures::prelude::*;
 use getset::Getters;
@@ -7,25 +8,28 @@ use serde::Deserialize;
 
 #[derive(Debug)]
 pub struct Device {
-    ip: hyper::Uri,
+    uri: hyper::Uri,
     device_spec: DeviceSpec,
 }
 
 impl Device {
-    pub fn ip(&self) -> &hyper::Uri {
-        &self.ip
+    pub fn uri(&self) -> &hyper::Uri {
+        &self.uri
     }
     pub fn description(&self) -> &DeviceSpec {
         &self.device_spec
     }
 
-    pub async fn from_url(ip: hyper::Uri) -> Result<Self, Error> {
+    pub async fn from_url(uri: hyper::Uri) -> Result<Self, Error> {
+        trace!("begin Device::from_url");
         let client = hyper::Client::new();
 
-        let res = client.get(ip.clone()).await?;
+        let res = client.get(uri.clone()).await?;
         let body = res.into_body().try_concat().await?;
+        trace!("fetched device description");
 
         let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..])?;
+        trace!("parsed device description");
 
         assert!(
             device_description.spec_version.major() == 1,
@@ -33,7 +37,7 @@ impl Device {
         );
 
         Ok(Device {
-            ip,
+            uri,
             device_spec: device_description.device,
         })
     }
@@ -49,9 +53,6 @@ struct DeviceDescription {
 #[derive(Deserialize, Debug, Getters)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceSpec {
-    #[serde(default = "String::new")]
-    #[get = "pub"]
-    ip: String,
     #[get = "pub"]
     device_type: String,
     #[get = "pub"]

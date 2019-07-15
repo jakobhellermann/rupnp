@@ -1,4 +1,5 @@
 use crate::device::Device;
+use log::trace;
 use crate::error::Error;
 use std::time::Duration;
 
@@ -8,7 +9,9 @@ pub async fn discover(
     search_target: SearchTarget,
     timeout: Duration,
 ) -> Result<Vec<Device>, Error> {
+    trace!("start ssdp search");
     let ips = ssdp::search(search_target, timeout).await?;
+    trace!("ssdp search finished");
 
     let mut devices = Vec::with_capacity(ips.len());
     for ip in ips {

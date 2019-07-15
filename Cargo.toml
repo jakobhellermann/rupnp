@@ -8,14 +8,14 @@ edition = "2018"
 futures-preview = "0.3.0-alpha.17"
 hyper = { git = "https://github.com/hyperium/hyper" }
 
-serde = { version = "1.0.94", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
 ssdp = { path = "../ssdp" }
-serde-xml-rs = "0.3.1"
-xmltree = "0.8.0"
+serde-xml-rs = "0.3"
+xmltree = "0.8"
 
 getset = "0.0.7"
-failure = "0.1.5"
+failure = "0.1"
+log = "0.4.7"
 
 [dev-dependencies]
-runtime = "0.3.0-alpha.6"
-runtime-tokio = "0.3.0-alpha.5"
+tokio = { git = "https://github.com/tokio-rs/tokio" }

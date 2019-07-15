@@ -2,14 +2,7 @@
 
 use upnp::{Device, Error};
 
-/*
-
-
-
-
-*/
-
-#[runtime::main(runtime_tokio::Tokio)]
+#[hyper::rt::main]
 async fn main() -> Result<(), Error> {
     let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
@@ -24,7 +17,7 @@ async fn main() -> Result<(), Error> {
 
     let mut response = service
         .action(
-            device.ip().to_owned(),
+            device.uri().to_owned(),
             "GetVolume",
             "<InstanceID>0</InstanceID><Channel>Master</Channel>",
         )

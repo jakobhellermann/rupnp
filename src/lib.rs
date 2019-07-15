@@ -1,18 +1,16 @@
 #![feature(async_await)]
 
-pub mod discovery;
-
-pub mod datatypes;
+mod discovery;
 pub mod device;
 pub mod error;
 pub mod scpd;
 pub mod service;
-
-pub use device::Device;
-pub use error::Error;
-pub use scpd::SCPD;
-pub use service::Service;
-
 mod shared;
 
+pub use device::Device;
+pub use service::Service;
+pub use scpd::SCPD;
+pub use error::Error;
+
+pub use discovery::discover;
 pub use ssdp;
