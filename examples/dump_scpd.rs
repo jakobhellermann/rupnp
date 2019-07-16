@@ -1,7 +1,7 @@
 #![feature(async_await, await_macro)]
 
 use upnp::device::{Device, DeviceSpec};
-use upnp::scpd::{SCPD, Action, StateVariable};
+use upnp::scpd::{Action, StateVariable, SCPD};
 use upnp::Error;
 
 fn main() -> Result<(), Error> {
@@ -24,14 +24,19 @@ fn print(device: &Device) {
 fn print_inner(spec: &DeviceSpec, ip: &hyper::Uri, indent_lvl: usize) {
     let space = "  ".repeat(indent_lvl);
 
-    let device_name = nth_last_colonseparated(spec.device_type(), 1).unwrap().to_uppercase();
+    let device_name = nth_last_colonseparated(spec.device_type(), 1)
+        .unwrap()
+        .to_uppercase();
     println!("{} {}", space, device_name);
 
     for service in spec.services() {
         let svc_name = nth_last_colonseparated(service.service_id(), 0).unwrap();
         println!("{} - {}", space, svc_name);
 
-        let fut = SCPD::from_url(service.scpd_url(ip.clone()), service.service_type().to_string());
+        let fut = SCPD::from_url(
+            service.scpd_url(ip.clone()),
+            service.service_type().to_string(),
+        );
         let mut rt = tokio::runtime::current_thread::Runtime::new().unwrap();
         let scpd = rt.block_on(fut).unwrap();
         /*for state_var in scpd.state_variables() {
@@ -43,17 +48,19 @@ fn print_inner(spec: &DeviceSpec, ip: &hyper::Uri, indent_lvl: usize) {
     }
 
     for device in spec.devices() {
-        print_inner(device, ip, indent_lvl+1);
+        print_inner(device, ip, indent_lvl + 1);
     }
 }
 
 fn print_action(indent_lvl: usize, action: &Action) {
     let space = "  ".repeat(indent_lvl);
 
-    let inputs: Vec<&str> = action.input_arguments()
+    let inputs: Vec<&str> = action
+        .input_arguments()
         .map(upnp::scpd::Argument::related_state_variable)
         .collect();
-    let outputs: Vec<&str> = action.output_arguments()
+    let outputs: Vec<&str> = action
+        .output_arguments()
         .map(upnp::scpd::Argument::related_state_variable)
         .collect();
     print!("{}AC: {}: ({})", space, action.name(), inputs.join(", "));

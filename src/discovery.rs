@@ -1,6 +1,6 @@
 use crate::device::Device;
-use log::trace;
 use crate::error::Error;
+use log::trace;
 use std::time::Duration;
 
 use ssdp::search::SearchTarget;

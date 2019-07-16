@@ -1,9 +1,9 @@
-use crate::service:: Service;
+use crate::service::Service;
 use crate::shared::{SpecVersion, Value};
-use log::trace;
 use crate::Error;
 use futures::prelude::*;
 use getset::Getters;
+use log::trace;
 use serde::Deserialize;
 
 #[derive(Debug)]

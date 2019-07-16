@@ -2,7 +2,7 @@
 
 use futures::prelude::*;
 use hyper::service::{make_service_fn, service_fn};
-use hyper::{Server, Body, Request, Response};
+use hyper::{Body, Request, Response, Server};
 use upnp::Device;
 
 #[hyper::rt::main]
@@ -21,7 +21,9 @@ async fn main() -> Result<(), upnp::Error> {
     service.subscribe(device.ip().to_owned(), &addr_str).await?;
 
     Server::bind(&addr)
-        .serve(make_service_fn(|_| async { Ok::<_, hyper::Error>(service_fn(callback)) } ))
+        .serve(make_service_fn(|_| {
+            async { Ok::<_, hyper::Error>(service_fn(callback)) }
+        }))
         .map_err(upnp::Error::NetworkError)
         .await?;
 
@@ -29,8 +31,7 @@ async fn main() -> Result<(), upnp::Error> {
 }
 
 async fn callback(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
-    let body = req.into_body()
-        .try_concat().await?;
+    let body = req.into_body().try_concat().await?;
     let body = String::from_utf8_lossy(body.as_ref());
     println!("{}", body);
 

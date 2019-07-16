@@ -1,8 +1,8 @@
 use crate::shared::Value;
 use crate::Error;
+use futures::prelude::*;
 use getset::{Getters, Setters};
 use serde::Deserialize;
-use futures::prelude::*;
 
 pub mod datatypes;
 
@@ -178,7 +178,7 @@ impl StateVariable {
     pub fn datatype_output(&self) -> &str {
         match self.data_type() {
             DataType::boolean => "bool",
-            _ => self.datatype_input()
+            _ => self.datatype_input(),
         }
     }
 }
