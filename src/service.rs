@@ -71,7 +71,7 @@ impl Service {
         let res = client.request(req).await?;
         let body = res.into_body().try_concat().await?;
 
-        let mut element = Element::parse(body.as_ref())?;
+        let mut element = Element::parse(body.as_ref()).map_err(|_| Error::ParseError)?;
         let mut body = element
             .take_child("Body")
             .ok_or_else(|| Error::ParseError)?;

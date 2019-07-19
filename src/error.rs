@@ -6,8 +6,10 @@ use xmltree::Element;
 pub enum Error {
     #[fail(display = "{}", _0)]
     UPnPError(#[cause] UPnPError),
-    #[fail(display = "Failed to parse Sonos response")]
+    #[fail(display = "Failed to parse Control Point response")]
     ParseError,
+    #[fail(display = "err")]
+    SerdeError(std::sync::Mutex<serde_xml_rs::Error>),
     #[fail(display = "Invalid response: {}", _0)]
     InvalidResponse(#[cause] failure::Error),
     #[fail(display = "An error occurred trying to connect to device: {}", _0)]
@@ -18,14 +20,14 @@ pub enum Error {
     InvalidArguments(#[cause] failure::Error),
 }
 
-impl From<xmltree::ParseError> for Error {
+/*impl From<xmltree::ParseError> for Error {
     fn from(_: xmltree::ParseError) -> Self {
         Error::ParseError
     }
-}
+}*/
 impl From<serde_xml_rs::Error> for Error {
-    fn from(_: serde_xml_rs::Error) -> Self {
-        Error::ParseError
+    fn from(err: serde_xml_rs::Error) -> Self {
+        Error::SerdeError(std::sync::Mutex::new(err))
     }
 }
 

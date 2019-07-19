@@ -11,7 +11,6 @@ pub struct Device {
     uri: hyper::Uri,
     device_spec: DeviceSpec,
 }
-
 impl Device {
     pub fn uri(&self) -> &hyper::Uri {
         &self.uri
