@@ -231,24 +231,24 @@ pub enum DataType {
 pub struct AllowedValueRange {
     ///Inclusive lower bound
     #[serde(default = "one")]
-    minimum: i32,
+    minimum: i64,
     ///Inclusive upper bound.
     #[serde(default = "one")]
-    maximum: i32,
+    maximum: i64,
     #[serde(default = "one")]
-    step: i32,
+    step: i64,
 }
 impl AllowedValueRange {
-    pub fn minimum(&self) -> i32 {
+    pub fn minimum(&self) -> i64 {
         self.minimum
     }
-    pub fn maximum(&self) -> i32 {
+    pub fn maximum(&self) -> i64 {
         self.maximum
     }
-    pub fn step(&self) -> i32 {
+    pub fn step(&self) -> i64 {
         self.step
     }
 }
-const fn one() -> i32 {
+const fn one() -> i64 {
     1
 }
