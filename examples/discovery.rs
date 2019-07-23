@@ -1,14 +1,14 @@
-#![feature(async_await, await_macro)]
-#![recursion_limit = "128"]
+#![feature(async_await)]
+#![allow(unused_imports)]
 
-use ssdp::search::SearchTarget;
+use ssdp_client::search::SearchTarget;
 use std::time::Duration;
 use upnp::Device;
 
 #[hyper::rt::main]
 async fn main() -> Result<(), upnp::Error> {
-    let search_target = SearchTarget::RootDevice;
-    //let sonos = SearchTarget::URN("schemas-upnp-org:device:ZonePlayer:1".to_string());
+    //let search_target = SearchTarget::RootDevice;
+    let search_target = "urn:schemas-upnp-org:device:ZonePlayer:1".parse().unwrap();
 
     let devices: Vec<Device> = upnp::discover(search_target, Duration::from_secs(1)).await?;
     for device in &devices {

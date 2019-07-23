@@ -13,4 +13,4 @@ pub use scpd::SCPD;
 pub use service::Service;
 
 pub use discovery::discover;
-pub use ssdp;
+pub use ssdp_client;

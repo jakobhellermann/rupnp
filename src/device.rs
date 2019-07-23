@@ -3,7 +3,6 @@ use crate::shared::{SpecVersion, Value};
 use crate::Error;
 use futures::prelude::*;
 use getset::Getters;
-use log::trace;
 use serde::Deserialize;
 
 #[derive(Debug)]
@@ -20,15 +19,12 @@ impl Device {
     }
 
     pub async fn from_url(uri: hyper::Uri) -> Result<Self, Error> {
-        trace!("begin Device::from_url");
         let client = hyper::Client::new();
 
         let res = client.get(uri.clone()).await?;
         let body = res.into_body().try_concat().await?;
-        trace!("fetched device description");
 
         let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..])?;
-        trace!("parsed device description");
 
         assert!(
             device_description.spec_version.major() == 1,

@@ -15,7 +15,7 @@ pub enum Error {
     #[fail(display = "An error occurred trying to connect to device: {}", _0)]
     NetworkError(#[cause] hyper::Error),
     #[fail(display = "An error occurred trying to discover devices: {}", _0)]
-    SSDPError(#[cause] ssdp::SSDPError),
+    Error(#[cause] ssdp_client::Error),
     #[fail(display = "Invalid Arguments: {}", _0)]
     InvalidArguments(#[cause] failure::Error),
 }
@@ -31,9 +31,9 @@ impl From<serde_xml_rs::Error> for Error {
     }
 }
 
-impl From<ssdp::SSDPError> for Error {
-    fn from(error: ssdp::SSDPError) -> Error {
-        Error::SSDPError(error)
+impl From<ssdp_client::Error> for Error {
+    fn from(error: ssdp_client::Error) -> Error {
+        Error::Error(error)
     }
 }
 
