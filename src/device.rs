@@ -4,6 +4,7 @@ use crate::Error;
 use futures::prelude::*;
 use getset::Getters;
 use serde::Deserialize;
+use ssdp_client::search::URN;
 
 #[derive(Debug)]
 pub struct Device {
@@ -20,7 +21,6 @@ impl Device {
 
     pub async fn from_url(uri: hyper::Uri) -> Result<Self, Error> {
         let client = hyper::Client::new();
-
         let res = client.get(uri.clone()).await?;
         let body = res.into_body().try_concat().await?;
 
@@ -49,7 +49,8 @@ struct DeviceDescription {
 #[serde(rename_all = "camelCase")]
 pub struct DeviceSpec {
     #[get = "pub"]
-    device_type: String,
+    #[serde(deserialize_with = "crate::shared::deserialize_urn")]
+    device_type: URN<'static>,
     #[get = "pub"]
     friendly_name: String,
     #[get = "pub"]
@@ -140,7 +141,7 @@ impl DeviceSpec {
         })
     }
 
-    pub fn find_service(&self, service_type: &str) -> Option<&Service> {
+    pub fn find_service(&self, service_type: &URN) -> Option<&Service> {
         self.visit_services(|s| {
             if s.service_type() == service_type {
                 return Some(s);
@@ -163,9 +164,9 @@ impl DeviceSpec {
         acc
     }
 
-    pub fn find_device(&self, device_type: &str) -> Option<&DeviceSpec> {
+    pub fn find_device(&self, device_type: &URN) -> Option<&DeviceSpec> {
         self.visit_devices(|device| {
-            if device.device_type == device_type {
+            if &device.device_type == device_type {
                 return Some(device);
             }
             None

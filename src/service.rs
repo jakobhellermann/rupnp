@@ -4,13 +4,15 @@ use futures::prelude::*;
 use getset::Getters;
 use hyper::header::HeaderValue;
 use serde::Deserialize;
+use ssdp_client::search::URN;
 use xmltree::Element;
 
 #[derive(Deserialize, Debug, Getters, Clone)]
 #[serde(rename_all = "camelCase")]
 #[get = "pub"]
 pub struct Service {
-    service_type: String,
+    #[serde(deserialize_with = "crate::shared::deserialize_urn")]
+    service_type: URN<'static>,
     service_id: String,
     #[serde(rename = "SCPDURL")]
     scpd_endpoint: String,
@@ -122,13 +124,4 @@ fn assemble_url(ip: hyper::Uri, rest: &str) -> hyper::Uri {
             .expect("url part assemble logic does not work"),
     );
     hyper::Uri::from_parts(parts).expect("url part assemble logic does not work")
-}
-
-pub fn urn_to_name(urn: &str) -> Option<String> {
-    let mut x = urn.rsplitn(3, ':');
-    Some(format!(
-        "{name}{version}",
-        version = x.next()?,
-        name = x.next()?
-    ))
 }

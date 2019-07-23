@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use upnp::device::{Device, DeviceSpec};
 use upnp::scpd::{Action, StateVariable, SCPD};
@@ -18,20 +18,16 @@ fn main() -> Result<(), Error> {
 }
 
 fn print(device: &Device) {
-    print_inner(device.description(), device.ip(), 0);
+    print_inner(device.description(), device.uri(), 0);
 }
 
 fn print_inner(spec: &DeviceSpec, ip: &hyper::Uri, indent_lvl: usize) {
     let space = "  ".repeat(indent_lvl);
 
-    let device_name = nth_last_colonseparated(spec.device_type(), 1)
-        .unwrap()
-        .to_uppercase();
-    println!("{} {}", space, device_name);
+    println!("{} {}", space, spec.device_type());
 
     for service in spec.services() {
-        let svc_name = nth_last_colonseparated(service.service_id(), 0).unwrap();
-        println!("{} - {}", space, svc_name);
+        println!("{} - {}", space, service.service_id());
 
         let fut = SCPD::from_url(
             service.scpd_url(ip.clone()),
@@ -39,12 +35,12 @@ fn print_inner(spec: &DeviceSpec, ip: &hyper::Uri, indent_lvl: usize) {
         );
         let mut rt = tokio::runtime::current_thread::Runtime::new().unwrap();
         let scpd = rt.block_on(fut).unwrap();
-        /*for state_var in scpd.state_variables() {
+        for state_var in scpd.state_variables() {
             print_state_var(indent_lvl+2, state_var);
         }
         for action in scpd.actions() {
             print_action(indent_lvl+2, action);
-        }*/
+        }
     }
 
     for device in spec.devices() {
@@ -73,13 +69,4 @@ fn print_action(indent_lvl: usize, action: &Action) {
 fn print_state_var(indent_lvl: usize, state_var: &StateVariable) {
     let space = "  ".repeat(indent_lvl);
     println!("{}SV {:?}", space, state_var);
-}
-
-fn nth_last_colonseparated(s: &str, mut n: usize) -> Option<&str> {
-    let mut iter = s.rsplit(':');
-    while n > 0 {
-        n -= 1;
-        iter.next();
-    }
-    iter.next()
 }

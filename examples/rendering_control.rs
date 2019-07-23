@@ -1,4 +1,4 @@
-#![feature(async_await, await_macro)]
+#![feature(async_await)]
 
 use upnp::{Device, Error};
 
@@ -7,13 +7,14 @@ async fn main() -> Result<(), Error> {
     let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
+    let service = "urn:schemas-upnp-org:service:RenderingControl:1"
+        .parse()
+        .unwrap();
 
     let device = Device::from_url(uri).await?;
     let spec = device.description();
 
-    let service = spec
-        .find_service("schemas-upnp-org:service:RenderingControl:1")
-        .unwrap();
+    let service = spec.find_service(&service).unwrap();
 
     let mut response = service
         .action(

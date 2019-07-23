@@ -1,9 +1,9 @@
 use crate::{Device, Error};
-use std::time::Duration;
 use ssdp_client::search::SearchTarget;
+use std::time::Duration;
 
 pub async fn discover(
-    search_target: SearchTarget,
+    search_target: SearchTarget<'_>,
     timeout: Duration,
 ) -> Result<Vec<Device>, Error> {
     let ips = ssdp_client::search(search_target, timeout, 3).await?;

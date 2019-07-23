@@ -13,12 +13,13 @@ async fn main() -> Result<(), upnp::Error> {
     let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
-    let device = Device::from_url(uri).await?;
-    let service = device
-        .description()
-        .find_service("schemas-upnp-org:service:AVTransport:1")
+    let service = "urn:schemas-upnp-org:service:AVTransport:1"
+        .parse()
         .unwrap();
-    service.subscribe(device.ip().to_owned(), &addr_str).await?;
+
+    let device = Device::from_url(uri).await?;
+    let service = device.description().find_service(&service).unwrap();
+    service.subscribe(device.uri().clone(), &addr_str).await?;
 
     Server::bind(&addr)
         .serve(make_service_fn(|_| {
