@@ -5,14 +5,15 @@ authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-failure = "0.1"
-futures-preview = "0.3.0-alpha.17"
+failure = "0.1.5"
+futures-preview = "0.3.0-alpha.18"
+futures-async-stream = "0.1.0-alpha.4"
 getset = "0.0.7"
 hyper = { git = "https://github.com/hyperium/hyper" }
-serde = { version = "1.0", features = ["derive"] }
-serde-xml-rs = "0.3"
-ssdp-client = "0.4"
-xmltree = "0.8"
+serde = { version = "1.0.99", features = ["derive"] }
+serde-xml-rs = "0.3.1"
+ssdp-client = { path = "../ssdp-client" }
+xmltree = "0.8.0"
 
 [dev-dependencies]
 tokio = { git = "https://github.com/tokio-rs/tokio" }

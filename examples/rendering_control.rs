@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use upnp::{Device, Error};
 
 #[hyper::rt::main]

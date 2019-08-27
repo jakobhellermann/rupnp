@@ -1,6 +1,4 @@
-#![feature(async_await)]
-#![allow(unused_imports)]
-
+#[allow(unused_imports)]
 use ssdp_client::search::SearchTarget;
 use std::time::Duration;
 use upnp::Device;

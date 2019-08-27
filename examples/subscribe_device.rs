@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use futures::prelude::*;
 use hyper::service::{make_service_fn, service_fn};
 use hyper::{Body, Request, Response, Server};

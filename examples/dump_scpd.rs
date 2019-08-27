@@ -1,5 +1,3 @@
-#![feature(async_await)]
-
 use upnp::device::{Device, DeviceSpec};
 use upnp::scpd::{Action, StateVariable, SCPD};
 use upnp::Error;
@@ -36,10 +34,10 @@ fn print_inner(spec: &DeviceSpec, ip: &hyper::Uri, indent_lvl: usize) {
         let mut rt = tokio::runtime::current_thread::Runtime::new().unwrap();
         let scpd = rt.block_on(fut).unwrap();
         for state_var in scpd.state_variables() {
-            print_state_var(indent_lvl+2, state_var);
+            print_state_var(indent_lvl + 2, state_var);
         }
         for action in scpd.actions() {
-            print_action(indent_lvl+2, action);
+            print_action(indent_lvl + 2, action);
         }
     }
 

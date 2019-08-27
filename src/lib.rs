@@ -1,4 +1,4 @@
-#![feature(async_await)]
+#![feature(generators, stmt_expr_attributes, proc_macro_hygiene)]
 
 pub mod device;
 mod discovery;
