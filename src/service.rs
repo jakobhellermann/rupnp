@@ -1,5 +1,4 @@
 use crate::error::{self, Error};
-use failure::ResultExt;
 use futures::prelude::*;
 use getset::Getters;
 use hyper::header::HeaderValue;
@@ -113,8 +112,7 @@ impl Service {
 
 fn header_value(s: &str) -> Result<hyper::http::header::HeaderValue, Error> {
     s.parse::<hyper::header::HeaderValue>()
-        .with_context(|e| format!("invalid header: {}", e))
-        .map_err(|e| Error::InvalidArguments(e.into()))
+        .map_err(|e| Error::InvalidArguments(Box::new(e)))
 }
 
 fn assemble_url(ip: hyper::Uri, rest: &str) -> hyper::Uri {

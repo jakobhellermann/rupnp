@@ -1,30 +1,25 @@
-use failure::Fail;
 use std::fmt;
 use xmltree::Element;
+use err_derive::Error;
 
-#[derive(Fail, Debug)]
+#[derive(Error, Debug)]
 pub enum Error {
-    #[fail(display = "{}", _0)]
-    UPnPError(#[cause] UPnPError),
-    #[fail(display = "Failed to parse Control Point response")]
+    #[error(display = "{}", _0)]
+    UPnPError(#[error(cause)] UPnPError),
+    #[error(display = "errored to parse Control Point response")]
     ParseError,
-    #[fail(display = "err")]
+    #[error(display = "err")]
     SerdeError(std::sync::Mutex<serde_xml_rs::Error>),
-    #[fail(display = "Invalid response: {}", _0)]
-    InvalidResponse(#[cause] failure::Error),
-    #[fail(display = "An error occurred trying to connect to device: {}", _0)]
-    NetworkError(#[cause] hyper::Error),
-    #[fail(display = "An error occurred trying to discover devices: {}", _0)]
-    Error(#[cause] ssdp_client::Error),
-    #[fail(display = "Invalid Arguments: {}", _0)]
-    InvalidArguments(#[cause] failure::Error),
+    #[error(display = "Invalid response: {}", _0)]
+    InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
+    #[error(display = "An error occurred trying to connect to device: {}", _0)]
+    NetworkError(#[error(cause)] hyper::Error),
+    #[error(display = "An error occurred trying to discover devices: {}", _0)]
+    Error(#[error(cause)] ssdp_client::Error),
+    #[error(display = "Invalid Arguments: {}", _0)]
+    InvalidArguments(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
-/*impl From<xmltree::ParseError> for Error {
-    fn from(_: xmltree::ParseError) -> Self {
-        Error::ParseError
-    }
-}*/
 impl From<serde_xml_rs::Error> for Error {
     fn from(err: serde_xml_rs::Error) -> Self {
         Error::SerdeError(std::sync::Mutex::new(err))
@@ -43,7 +38,7 @@ impl From<hyper::Error> for Error {
     }
 }
 
-#[derive(Fail, Debug)]
+#[derive(Error, Debug)]
 pub struct UPnPError {
     fault_code: String,
     fault_string: String,
