@@ -3,7 +3,7 @@ use ssdp_client::search::SearchTarget;
 use std::time::Duration;
 use upnp::Device;
 
-#[hyper::rt::main]
+#[tokio::main]
 async fn main() -> Result<(), upnp::Error> {
     //let search_target = SearchTarget::RootDevice;
     let search_target = "urn:schemas-upnp-org:device:ZonePlayer:1".parse().unwrap();

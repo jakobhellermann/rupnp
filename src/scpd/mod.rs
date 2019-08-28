@@ -167,7 +167,7 @@ impl StateVariable {
                 DataType::char => "char",
                 DataType::string => "String",
                 /* */
-                DataType::boolean => "upnp::scpd::datatypes::Bool",
+                DataType::boolean => "bool",
                 /* */
                 DataType::uri => "hyper::Uri",
                 _ => unimplemented!("{:?}", self),
@@ -177,7 +177,7 @@ impl StateVariable {
 
     pub fn datatype_output(&self) -> &str {
         match self.data_type() {
-            DataType::boolean => "bool",
+            DataType::boolean => "upnp::Bool",
             _ => self.datatype_input(),
         }
     }

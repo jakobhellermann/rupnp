@@ -1,6 +1,6 @@
 use upnp::{Device, Error};
 
-#[hyper::rt::main]
+#[tokio::main]
 async fn main() -> Result<(), Error> {
     let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
@@ -30,7 +30,7 @@ async fn main() -> Result<(), Error> {
 
     let volume: u8 = volume
         .parse()
-        .map_err(|e| Error::InvalidResponse(failure::Error::from(e)))?;
+        .map_err(|e| Error::InvalidResponse(Box::new(e)))?;
 
     println!("{}", volume);
 
