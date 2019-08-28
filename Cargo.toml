@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 futures-preview = "0.3.0-alpha.18"
-futures-async-stream = "0.1.0-alpha.4"
 getset = "0.0.7"
 hyper = { git = "https://github.com/hyperium/hyper" }
 serde = { version = "1.0.99", features = ["derive"] }
@@ -16,4 +15,5 @@ xmltree = "0.8.0"
 err-derive = "0.1.5"
 
 [dev-dependencies]
-tokio = { git = "https://github.com/tokio-rs/tokio" }
+tokio = "0.2.0-alpha.1"
+futures-async-stream = "0.1.0-alpha.4"
