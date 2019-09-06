@@ -6,14 +6,18 @@ edition = "2018"
 
 [dependencies]
 futures-preview = "0.3.0-alpha.18"
-getset = "0.0.7"
-hyper = { git = "https://github.com/hyperium/hyper" }
-serde = { version = "1.0.99", features = ["derive"] }
+getset = "0.0.8"
+hyper = { version = "0.13.0-alpha.2", features = ["unstable-stream"] }
+serde = { version = "1.0.101", features = ["derive"] }
 serde-xml-rs = "0.3.1"
 ssdp-client = { path = "../ssdp-client" }
 xmltree = "0.8.0"
-err-derive = "0.1.5"
+err-derive = "0.1.6"
 
 [dev-dependencies]
-tokio = "0.2.0-alpha.1"
-futures-async-stream = "0.1.0-alpha.4"
+tokio = "0.2.0-alpha.5"
+futures-async-stream = "0.1.0-alpha.7"
+
+[patch.crates-io]
+tokio-io = { package = "tokio-io", git = "https://github.com/tokio-rs/tokio" }
+hyper = { git = "https://github.com/taiki-e/hyper", branch = "pin-project" }
