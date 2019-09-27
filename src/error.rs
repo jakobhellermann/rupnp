@@ -1,23 +1,32 @@
-use std::fmt;
-use xmltree::Element;
 use err_derive::Error;
+use std::fmt;
 
 #[derive(Error, Debug)]
 pub enum Error {
     #[error(display = "{}", _0)]
     UPnPError(#[error(cause)] UPnPError),
-    #[error(display = "errored to parse Control Point response")]
-    ParseError,
-    #[error(display = "err")]
+    #[error(display = "invalid utf8: {}", _0)]
+    InvalidUtf8(#[error(cause)] std::str::Utf8Error),
+    #[error(display = "serde error")]
     SerdeError(std::sync::Mutex<serde_xml_rs::Error>),
+    #[error(display = "failed to parse xml: {}", _0)]
+    XmlError(roxmltree::Error),
+    #[error(display = "failed to parse Control Point response")]
+    ParseError,
     #[error(display = "Invalid response: {}", _0)]
     InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error(display = "An error occurred trying to connect to device: {}", _0)]
     NetworkError(#[error(cause)] hyper::Error),
     #[error(display = "An error occurred trying to discover devices: {}", _0)]
-    Error(#[error(cause)] ssdp_client::Error),
+    SSDPError(#[error(cause)] ssdp_client::Error),
     #[error(display = "Invalid Arguments: {}", _0)]
     InvalidArguments(Box<dyn std::error::Error + Send + Sync + 'static>),
+}
+
+impl From<std::str::Utf8Error> for Error {
+    fn from(err: std::str::Utf8Error) -> Error {
+        Error::InvalidUtf8(err)
+    }
 }
 
 impl From<serde_xml_rs::Error> for Error {
@@ -26,15 +35,21 @@ impl From<serde_xml_rs::Error> for Error {
     }
 }
 
+impl From<roxmltree::Error> for Error {
+    fn from(err: roxmltree::Error) -> Self {
+        Error::XmlError(err)
+    }
+}
+
 impl From<ssdp_client::Error> for Error {
-    fn from(error: ssdp_client::Error) -> Error {
-        Error::Error(error)
+    fn from(err: ssdp_client::Error) -> Error {
+        Error::SSDPError(err)
     }
 }
 
 impl From<hyper::Error> for Error {
-    fn from(error: hyper::Error) -> Error {
-        Error::NetworkError(error)
+    fn from(err: hyper::Error) -> Error {
+        Error::NetworkError(err)
     }
 }
 
@@ -64,6 +79,31 @@ impl UPnPError {
             _ => "Invalid Error Code",
         }
     }
+
+    pub(crate) fn from_fault_node(node: roxmltree::Node) -> Error {
+        let mut fault_code = None;
+        let mut fault_string = None;
+        let mut err_code = None;
+
+        for child in node.descendants() {
+            match child.tag_name().name() {
+                "faultcode" => fault_code = child.text(),
+                "faultstring" => fault_string = child.text(),
+                "errorCode" => err_code = child.text(),
+                _ => (),
+            }
+        }
+
+        let err_code = err_code.and_then(|x| x.parse::<u16>().ok());
+        match (fault_code, fault_string, err_code) {
+            (Some(fault_code), Some(fault_string), Some(err_code)) => Error::UPnPError(UPnPError {
+                fault_code: fault_code.to_string(),
+                fault_string: fault_string.to_string(),
+                err_code,
+            }),
+            _ => Error::ParseError,
+        }
+    }
 }
 impl fmt::Display for UPnPError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -76,7 +116,7 @@ impl fmt::Display for UPnPError {
         )
     }
 }
-
+/*
 fn element_to_string(element: &Element) -> Result<String, Error> {
     element.text.to_owned().ok_or(Error::ParseError)
 }
@@ -104,3 +144,4 @@ pub fn parse(fault: &Element) -> Result<UPnPError, Error> {
         Err(Error::ParseError)
     }
 }
+*/

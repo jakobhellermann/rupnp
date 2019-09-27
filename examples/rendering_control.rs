@@ -1,5 +1,13 @@
 use upnp::{Device, Error};
 
+macro_rules! map(
+    { $($key:expr => $value:expr),+ } => { {
+        let mut m = ::std::collections::HashMap::new();
+        $(m.insert($key, $value);)+
+        m
+    }};
+);
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
@@ -10,27 +18,14 @@ async fn main() -> Result<(), Error> {
         .unwrap();
 
     let device = Device::from_url(uri).await?;
-    let spec = device.description();
+    let service = device.description().find_service(&service).unwrap();
 
-    let service = spec.find_service(&service).unwrap();
-
-    let mut response = service
-        .action(
-            device.uri().to_owned(),
-            "GetVolume",
-            "<InstanceID>0</InstanceID><Channel>Master</Channel>",
-        )
+    let args = map! { "InstanceID" => "0", "Channel" => "Master" };
+    let response = service
+        .action(device.uri().to_owned(), "GetVolume", args)
         .await?;
 
-    let volume = response
-        .take_child("CurrentVolume")
-        .unwrap()
-        .text
-        .ok_or(Error::ParseError)?;
-
-    let volume: u8 = volume
-        .parse()
-        .map_err(|e| Error::InvalidResponse(Box::new(e)))?;
+    let volume = response.get("CurrentVolume").unwrap();
 
     println!("{}", volume);
 

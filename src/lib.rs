@@ -9,9 +9,9 @@ mod shared;
 
 pub use device::Device;
 pub use error::Error;
+pub use scpd::datatypes::Bool;
 pub use scpd::SCPD;
 pub use service::Service;
-pub use scpd::datatypes::Bool;
 
 pub use discovery::discover;
 pub use ssdp_client;

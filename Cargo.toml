@@ -11,7 +11,7 @@ hyper = { version = "0.13.0-alpha.2", features = ["unstable-stream"] }
 serde = { version = "1.0.101", features = ["derive"] }
 serde-xml-rs = "0.3.1"
 ssdp-client = { path = "../ssdp-client" }
-xmltree = "0.8.0"
+roxmltree = "0.7.1"
 err-derive = "0.1.6"
 
 [dev-dependencies]
