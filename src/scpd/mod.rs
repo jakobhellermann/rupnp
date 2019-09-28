@@ -1,18 +1,15 @@
 use crate::shared::Value;
 use crate::Error;
 use futures::prelude::*;
-use getset::{Getters, Setters};
 use serde::Deserialize;
 
 pub mod datatypes;
 
-#[derive(Deserialize, Debug, Getters, Setters)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SCPD {
     #[serde(skip_deserializing)]
-    #[get = "pub"]
-    #[set = "pub"]
-    urn: String,
+    pub urn: String,
     service_state_table: Value<Vec<StateVariable>>,
     action_list: Value<Vec<Action>>,
 }
@@ -32,13 +29,13 @@ impl SCPD {
         )
     }
 
-    pub async fn from_url(uri: hyper::Uri, urn: String) -> Result<Self, Error> {
-        let client = hyper::Client::new();
+    pub async fn from_url(url: &surf::url::Url, urn: String) -> Result<Self, Error> {
+        let body = surf::get(url)
+            .recv_string()
+            .map_err(Error::NetworkError)
+            .await?;
 
-        let res = client.get(uri).await?;
-        let body = res.into_body().try_concat().await?;
-
-        let mut scpd: SCPD = serde_xml_rs::from_reader(&body[..])?;
+        let mut scpd: SCPD = serde_xml_rs::from_reader(body.as_bytes())?;
         scpd.urn = urn;
         Ok(scpd)
     }
@@ -78,16 +75,22 @@ impl Action {
     }
 }
 
-#[derive(Deserialize, Getters, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Argument {
-    #[get = "pub"]
-    name: String,
-    #[get = "pub"]
-    direction: Direction,
+    pub name: String,
+    pub direction: Direction,
     related_state_variable: String,
 }
 impl Argument {
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn direction(&self) -> &Direction {
+        &self.direction
+    }
+
     pub fn related_state_variable(&self) -> &str {
         self.related_state_variable
             .trim_start_matches("A_ARG_TYPE_")
@@ -112,24 +115,19 @@ impl Direction {
     }
 }
 
-#[derive(Deserialize, Getters, Debug)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct StateVariable {
     name: String,
     #[serde(default = "Bool::yes")]
     ///Defines whether event messages will be generated when the value of this state variable changes.
-    #[get = "pub"]
     send_events_attribute: Bool,
     #[serde(default = "Bool::no")]
     ///Defines whether event messages will be delivered using multicast eventing.
-    #[get = "pub"]
     multicast: Bool,
-    #[get = "pub"]
     data_type: DataType,
-    #[get = "pub"]
     default_value: Option<String>,
     allowed_value_list: Option<Value<Vec<String>>>,
-    #[get = "pub"]
     allowed_value_range: Option<AllowedValueRange>,
     optional: Option<()>,
 }
@@ -143,47 +141,64 @@ impl StateVariable {
         self.optional.is_some()
     }
 
+    pub fn send_events(&self) -> bool {
+        self.send_events_attribute.into()
+    }
+
+    pub fn multicast(&self) -> bool {
+        self.multicast.into()
+    }
+
+    pub fn datatype(&self) -> &DataType {
+        &self.data_type
+    }
+
     pub fn allowed_values(&self) -> Option<&Vec<String>> {
-        if let Some(allowed_values) = &self.allowed_value_list {
-            return Some(&allowed_values.value);
-        }
-        None
+        self.allowed_value_list.as_ref().map(|x| &x.value)
     }
 
-    pub fn datatype_input(&self) -> &str {
-        if self.allowed_values().is_some() {
-            self.name()
-        } else {
-            match self.data_type() {
-                DataType::ui1 => "u8",
-                DataType::ui2 => "u16",
-                DataType::ui4 => "u32",
-                DataType::ui8 => "u64",
-                DataType::i1 => "i8",
-                DataType::i2 => "i16",
-                DataType::i4 => "i32",
-                DataType::int => "i64",
-                /* */
-                DataType::char => "char",
-                DataType::string => "String",
-                /* */
-                DataType::boolean => "bool",
-                /* */
-                DataType::uri => "hyper::Uri",
-                _ => unimplemented!("{:?}", self),
-            }
-        }
+    pub fn allowed_value_range(&self) -> Option<&AllowedValueRange> {
+        self.allowed_value_range.as_ref()
     }
 
-    pub fn datatype_output(&self) -> &str {
-        match self.data_type() {
-            DataType::boolean => "upnp::Bool",
-            _ => self.datatype_input(),
-        }
+    pub fn default_value(&self) -> Option<&String> {
+        self.default_value.as_ref()
     }
+
+    // pub fn datatype_input(&self) -> &str {
+    //     if self.allowed_values().is_some() {
+    //         self.name()
+    //     } else {
+    //         match &self.data_type {
+    //             DataType::ui1 => "u8",
+    //             DataType::ui2 => "u16",
+    //             DataType::ui4 => "u32",
+    //             DataType::ui8 => "u64",
+    //             DataType::i1 => "i8",
+    //             DataType::i2 => "i16",
+    //             DataType::i4 => "i32",
+    //             DataType::int => "i64",
+    //             /* */
+    //             DataType::char => "char",
+    //             DataType::string => "String",
+    //             /* */
+    //             DataType::boolean => "bool",
+    //             /* */
+    //             DataType::uri => "hyper::Uri",
+    //             _ => unimplemented!("{:?}", self),
+    //         }
+    //     }
+    // }
+
+    // pub fn datatype_output(&self) -> &str {
+    //     match self.data_type() {
+    //         DataType::boolean => "upnp::Bool",
+    //         _ => self.datatype_input(),
+    //     }
+    // }
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Copy, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum Bool {
     Yes,
@@ -195,6 +210,14 @@ impl Bool {
     }
     fn no() -> Self {
         Bool::No
+    }
+}
+impl Into<bool> for Bool {
+    fn into(self) -> bool {
+        match self {
+            Bool::Yes => true,
+            Bool::No => false,
+        }
     }
 }
 

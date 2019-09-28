@@ -1,38 +1,54 @@
+use async_std::{
+    io,
+    net::{TcpListener, TcpStream},
+    task,
+};
 use futures::prelude::*;
-use hyper::service::{make_service_fn, service_fn};
-use hyper::{Body, Request, Response, Server};
 use upnp::Device;
 
-#[tokio::main]
-async fn main() -> Result<(), upnp::Error> {
+fn main() {
+    if let Err(e) = task::block_on(subscribe()) {
+        eprintln!("{}", e);
+    }
+}
+
+async fn subscribe() -> Result<(), upnp::Error> {
     let addr: std::net::SocketAddr = ([192, 168, 2, 91], 3000).into();
     let addr_str = format!("http://{}", addr);
 
-    let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
+    let url = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
     let service = "urn:schemas-upnp-org:service:AVTransport:1"
         .parse()
         .unwrap();
 
-    let device = Device::from_url(uri).await?;
-    let service = device.description().find_service(&service).unwrap();
-    service.subscribe(device.uri().clone(), &addr_str).await?;
+    let device = Device::from_url(url).await?;
+    let service = device.find_service(&service).unwrap();
+    service.subscribe(device.url(), &addr_str).await?;
 
-    Server::bind(&addr)
-        .serve(make_service_fn(|_| {
-            async { Ok::<_, hyper::Error>(service_fn(callback)) }
-        }))
-        .map_err(upnp::Error::NetworkError)
+    let listener = TcpListener::bind(addr)
+        .map_err(|err| upnp::Error::NetworkError(Box::new(err)))
         .await?;
+    println!("Listening on {}", listener.local_addr().unwrap());
+
+    let mut incoming = listener.incoming();
+    while let Some(stream) = incoming.next().await {
+        let stream = stream.map_err(|err| upnp::Error::NetworkError(Box::new(err)))?;
+        task::spawn(async {
+            process(stream).await.unwrap();
+        });
+    }
 
     Ok(())
 }
 
-async fn callback(req: Request<Body>) -> Result<Response<Body>, hyper::Error> {
-    let body = req.into_body().try_concat().await?;
-    let body = String::from_utf8_lossy(body.as_ref());
-    println!("{}", body);
+async fn process(stream: TcpStream) -> io::Result<()> {
+    println!("Accepted from: {}", stream.peer_addr()?);
 
-    Ok(Response::default())
+    let (reader, _) = &mut (&stream, &stream);
+
+    io::copy(reader, &mut io::stdout()).await?;
+
+    Ok(())
 }

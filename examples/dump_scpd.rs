@@ -1,38 +1,40 @@
+use async_std::task;
 use upnp::device::{Device, DeviceSpec};
 use upnp::scpd::{Action, StateVariable, SCPD};
 use upnp::Error;
 
-fn main() -> Result<(), Error> {
-    let mut rt = tokio::runtime::current_thread::Runtime::new().unwrap();
-
-    let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
+fn main() -> Result<(), upnp::Error> {
+    let url: surf::url::Url = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
+    task::block_on(dump_scpd(url))
+}
 
-    let device = rt.block_on(Device::from_url(uri))?;
+async fn dump_scpd(url: surf::url::Url) -> Result<(), Error> {
+    let device = Device::from_url(url).await?;
     print(&device);
 
     Ok(())
 }
 
 fn print(device: &Device) {
-    print_inner(device.description(), device.uri(), 0);
+    print_inner(device, device.url(), 0);
 }
 
-fn print_inner(spec: &DeviceSpec, ip: &hyper::Uri, indent_lvl: usize) {
+fn print_inner(spec: &DeviceSpec, url: &surf::url::Url, indent_lvl: usize) {
     let space = "  ".repeat(indent_lvl);
 
-    println!("{} {}", space, spec.device_type());
+    println!("{} {}", space, &spec.device_type);
 
     for service in spec.services() {
         println!("{} - {}", space, service.service_id());
 
-        let fut = SCPD::from_url(
-            service.scpd_url(ip.clone()),
+        let scpd = task::block_on(SCPD::from_url(
+            &service.scpd_url(url),
             service.service_type().to_string(),
-        );
-        let mut rt = tokio::runtime::current_thread::Runtime::new().unwrap();
-        let scpd = rt.block_on(fut).unwrap();
+        ))
+        .unwrap();
+
         for state_var in scpd.state_variables() {
             print_state_var(indent_lvl + 2, state_var);
         }
@@ -42,7 +44,7 @@ fn print_inner(spec: &DeviceSpec, ip: &hyper::Uri, indent_lvl: usize) {
     }
 
     for device in spec.devices() {
-        print_inner(device, ip, indent_lvl + 1);
+        print_inner(device, url, indent_lvl + 1);
     }
 }
 

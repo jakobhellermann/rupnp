@@ -14,14 +14,15 @@ impl fmt::Display for Bool {
     }
 }
 
-impl From<Bool> for bool {
-    fn from(b: Bool) -> bool {
-        match b {
+impl Into<bool> for Bool {
+    fn into(self) -> bool {
+        match self {
             Bool::False => false,
             Bool::True => true,
         }
     }
 }
+
 impl From<bool> for Bool {
     fn from(b: bool) -> Self {
         if b {

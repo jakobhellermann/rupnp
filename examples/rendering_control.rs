@@ -1,3 +1,4 @@
+use async_std::task;
 use upnp::{Device, Error};
 
 macro_rules! map(
@@ -8,26 +9,31 @@ macro_rules! map(
     }};
 );
 
-#[tokio::main]
-async fn main() -> Result<(), Error> {
-    let uri: hyper::Uri = "http://192.168.2.49:1400/xml/device_description.xml"
+fn main() {
+    let url = "http://192.168.2.29:1400/xml/device_description.xml"
         .parse()
         .unwrap();
+
+    match task::block_on(get_volume(url)) {
+        Err(err) => eprintln!("{}", err),
+        Ok(volume) => println!("{}", volume),
+    }
+}
+
+async fn get_volume(url: surf::url::Url) -> Result<u16, Error> {
     let service = "urn:schemas-upnp-org:service:RenderingControl:1"
         .parse()
         .unwrap();
 
-    let device = Device::from_url(uri).await?;
-    let service = device.description().find_service(&service).unwrap();
+    let device = Device::from_url(url).await?;
+    let service = device.find_service(&service).unwrap();
 
     let args = map! { "InstanceID" => "0", "Channel" => "Master" };
-    let response = service
-        .action(device.uri().to_owned(), "GetVolume", args)
-        .await?;
+    let response = service.action(device.url(), "GetVolume", args).await?;
 
-    let volume = response.get("CurrentVolume").unwrap();
-
-    println!("{}", volume);
-
-    Ok(())
+    response
+        .get("CurrentVolume")
+        .unwrap()
+        .parse()
+        .map_err(|err| Error::InvalidResponse(Box::new(err)))
 }

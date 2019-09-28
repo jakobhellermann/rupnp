@@ -5,10 +5,12 @@ use std::fmt;
 pub enum Error {
     #[error(display = "{}", _0)]
     UPnPError(#[error(cause)] UPnPError),
+    #[error(display = "invalid url: {}", _0)]
+    InvalidUrl(#[cause] surf::url::ParseError),
     #[error(display = "invalid utf8: {}", _0)]
     InvalidUtf8(#[error(cause)] std::str::Utf8Error),
-    #[error(display = "serde error")]
-    SerdeError(std::sync::Mutex<serde_xml_rs::Error>),
+    #[error(display = "serde error: {}", _0)]
+    SerdeError(serde_xml_rs::Error),
     #[error(display = "failed to parse xml: {}", _0)]
     XmlError(roxmltree::Error),
     #[error(display = "failed to parse Control Point response")]
@@ -16,11 +18,11 @@ pub enum Error {
     #[error(display = "Invalid response: {}", _0)]
     InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error(display = "An error occurred trying to connect to device: {}", _0)]
-    NetworkError(#[error(cause)] hyper::Error),
+    NetworkError(Box<(dyn std::error::Error + Send + Sync + 'static)>),
+    #[error(display = "The control point responded with status code: {}", _0)]
+    HttpErrorCode(surf::http::StatusCode),
     #[error(display = "An error occurred trying to discover devices: {}", _0)]
     SSDPError(#[error(cause)] ssdp_client::Error),
-    #[error(display = "Invalid Arguments: {}", _0)]
-    InvalidArguments(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
 impl From<std::str::Utf8Error> for Error {
@@ -29,9 +31,15 @@ impl From<std::str::Utf8Error> for Error {
     }
 }
 
+impl From<surf::url::ParseError> for Error {
+    fn from(err: surf::url::ParseError) -> Error {
+        Error::InvalidUrl(err)
+    }
+}
+
 impl From<serde_xml_rs::Error> for Error {
     fn from(err: serde_xml_rs::Error) -> Self {
-        Error::SerdeError(std::sync::Mutex::new(err))
+        Error::SerdeError(err)
     }
 }
 
@@ -44,12 +52,6 @@ impl From<roxmltree::Error> for Error {
 impl From<ssdp_client::Error> for Error {
     fn from(err: ssdp_client::Error) -> Error {
         Error::SSDPError(err)
-    }
-}
-
-impl From<hyper::Error> for Error {
-    fn from(err: hyper::Error) -> Error {
-        Error::NetworkError(err)
     }
 }
 
@@ -116,32 +118,3 @@ impl fmt::Display for UPnPError {
         )
     }
 }
-/*
-fn element_to_string(element: &Element) -> Result<String, Error> {
-    element.text.to_owned().ok_or(Error::ParseError)
-}
-
-pub fn parse(fault: &Element) -> Result<UPnPError, Error> {
-    let fault_code = element_to_string(fault.get_child("faultcode").ok_or(Error::ParseError)?)?;
-    let fault_string = element_to_string(fault.get_child("faultstring").ok_or(Error::ParseError)?)?;
-
-    let err_code = fault
-        .get_child("detail")
-        .ok_or(Error::ParseError)?
-        .get_child("UPnPError")
-        .ok_or(Error::ParseError)?
-        .get_child("errorCode")
-        .ok_or(Error::ParseError)?;
-
-    if let Some(err_code) = &err_code.text {
-        let err_code = err_code.parse().map_err(|_| Error::ParseError)?;
-        Ok(UPnPError {
-            fault_code,
-            fault_string,
-            err_code,
-        })
-    } else {
-        Err(Error::ParseError)
-    }
-}
-*/

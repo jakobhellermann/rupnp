@@ -1,15 +1,13 @@
 use crate::error::{Error, UPnPError};
 use futures::prelude::*;
-use getset::Getters;
-use hyper::header::HeaderValue;
 use roxmltree::Document;
 use serde::Deserialize;
 use ssdp_client::search::URN;
 use std::collections::HashMap;
+use surf::http::Method;
 
-#[derive(Deserialize, Debug, Getters, Clone)]
+#[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
-#[get = "pub"]
 pub struct Service {
     #[serde(deserialize_with = "crate::shared::deserialize_urn")]
     service_type: URN<'static>,
@@ -23,24 +21,36 @@ pub struct Service {
 }
 
 impl Service {
-    pub fn control_url(&self, ip: hyper::Uri) -> hyper::Uri {
-        assemble_url(ip, &self.control_endpoint)
+    pub fn service_type(&self) -> &URN<'static> {
+        &self.service_type
     }
-    pub fn scpd_url(&self, ip: hyper::Uri) -> hyper::Uri {
-        assemble_url(ip, &self.scpd_endpoint)
+
+    pub fn service_id(&self) -> &str {
+        &self.service_id
     }
-    pub fn event_sub_url(&self, ip: hyper::Uri) -> hyper::Uri {
-        assemble_url(ip, &self.event_sub_endpoint)
+
+    pub fn control_url(&self, url: &surf::url::Url) -> surf::url::Url {
+        let mut control_url = url.clone();
+        control_url.set_path(&self.control_endpoint);
+        control_url
+    }
+    pub fn scpd_url(&self, url: &surf::url::Url) -> surf::url::Url {
+        let mut scpd_url = url.clone();
+        scpd_url.set_path(&self.scpd_endpoint);
+        scpd_url
+    }
+    pub fn event_sub_url(&self, url: &surf::url::Url) -> surf::url::Url {
+        let mut event_sub_url = url.clone();
+        event_sub_url.set_path(&self.event_sub_endpoint);
+        event_sub_url
     }
 
     pub async fn action(
         &self,
-        ip: hyper::Uri,
+        url: &surf::url::Url,
         action: &str,
         arguments: HashMap<&str, &str>,
     ) -> Result<HashMap<String, String>, Error> {
-        let client = hyper::Client::new();
-
         let mut payload = String::with_capacity(
             arguments
                 .iter()
@@ -66,25 +76,23 @@ impl Service {
                     </u:{action}>
                 </s:Body>
             </s:Envelope>"#,
-            service = self.service_type(),
+            service = &self.service_type,
             action = action,
             payload = payload
         );
 
-        let mut req = hyper::Request::new(hyper::Body::from(body));
-        *req.method_mut() = hyper::Method::POST;
-        *req.uri_mut() = self.control_url(ip);
-        req.headers_mut().insert(
-            hyper::header::CONTENT_TYPE,
-            hyper::header::HeaderValue::from_static("xml"),
-        );
-        req.headers_mut().insert(
-            "SOAPAction",
-            header_value(&format!("\"{}#{}\"", self.service_type(), action))?,
-        );
+        let response = surf::post(self.control_url(url))
+            .body_string(body)
+            .set_header("CONTENT-TYPE", "xml")
+            .set_header(
+                "SOAPAction",
+                format!("\"{}#{}\"", &self.service_type, action),
+            )
+            .recv_string()
+            .map_err(Error::NetworkError)
+            .await?;
 
-        let response = client.request(req).await?.into_body().try_concat().await?;
-        let document = Document::parse(std::str::from_utf8(&response)?)?;
+        let document = Document::parse(&response)?;
 
         let body = document
             .root()
@@ -108,35 +116,24 @@ impl Service {
         }
     }
 
-    pub async fn subscribe(&self, ip: hyper::Uri, callback: &str) -> Result<(), Error> {
-        let client = hyper::client::Client::new();
+    pub async fn subscribe(&self, url: &surf::url::Url, callback: &str) -> Result<(), Error> {
+        let mut response = surf::Request::new(
+            Method::from_bytes(b"SUSBSCRIBE").unwrap(),
+            self.event_sub_url(url),
+        )
+        .set_header("CALLBACK", format!("<{}>", callback))
+        .set_header("NT", "upnp:event")
+        .set_header("TIMEOUT", "Second-300")
+        .await
+        .map_err(Error::NetworkError)?;
 
-        let mut req = hyper::Request::new(Default::default());
-        *req.uri_mut() = self.event_sub_url(ip);
-        *req.method_mut() = hyper::Method::from_bytes(b"SUBSCRIBE").expect("can not fail");
-        req.headers_mut()
-            .insert("CALLBACK", header_value(&format!("<{}>", callback))?);
-        req.headers_mut()
-            .insert("NT", HeaderValue::from_static("upnp:event"));
-        req.headers_mut()
-            .insert("TIMEOUT", HeaderValue::from_static("Second-300"));
+        if response.status() != 200 {
+            return Err(Error::HttpErrorCode(response.status()));
+        }
 
-        let _ = client.request(req).await?;
+        let body = response.body_string().await.map_err(Error::NetworkError)?;
+        dbg!(body);
 
-        Ok(())
+        unimplemented!()
     }
-}
-
-fn header_value(s: &str) -> Result<hyper::http::header::HeaderValue, Error> {
-    s.parse::<hyper::header::HeaderValue>()
-        .map_err(|e| Error::InvalidArguments(Box::new(e)))
-}
-
-fn assemble_url(ip: hyper::Uri, rest: &str) -> hyper::Uri {
-    let mut parts = ip.into_parts();
-    parts.path_and_query = Some(
-        hyper::http::uri::PathAndQuery::from_shared(rest.into())
-            .expect("url part assemble logic does not work"),
-    );
-    hyper::Uri::from_parts(parts).expect("url part assemble logic does not work")
 }

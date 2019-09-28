@@ -2,29 +2,26 @@ use crate::service::Service;
 use crate::shared::{SpecVersion, Value};
 use crate::Error;
 use futures::prelude::*;
-use getset::Getters;
 use serde::Deserialize;
 use ssdp_client::search::URN;
 
 #[derive(Debug)]
 pub struct Device {
-    uri: hyper::Uri,
+    url: surf::url::Url,
     device_spec: DeviceSpec,
 }
 impl Device {
-    pub fn uri(&self) -> &hyper::Uri {
-        &self.uri
-    }
-    pub fn description(&self) -> &DeviceSpec {
-        &self.device_spec
+    pub fn url(&self) -> &surf::url::Url {
+        &self.url
     }
 
-    pub async fn from_url(uri: hyper::Uri) -> Result<Self, Error> {
-        let client = hyper::Client::new();
-        let res = client.get(uri.clone()).await?;
-        let body = res.into_body().try_concat().await?;
+    pub async fn from_url(url: surf::url::Url) -> Result<Self, Error> {
+        let body = surf::get(&url)
+            .recv_string()
+            .map_err(Error::NetworkError)
+            .await?;
 
-        let device_description: DeviceDescription = serde_xml_rs::from_reader(&body[..])?;
+        let device_description: DeviceDescription = serde_xml_rs::from_reader(body.as_bytes())?;
 
         assert!(
             device_description.spec_version.major() == 1,
@@ -32,9 +29,17 @@ impl Device {
         );
 
         Ok(Device {
-            uri,
+            url,
             device_spec: device_description.device,
         })
+    }
+}
+
+impl std::ops::Deref for Device {
+    type Target = DeviceSpec;
+
+    fn deref(&self) -> &Self::Target {
+        &self.device_spec
     }
 }
 
@@ -45,45 +50,32 @@ struct DeviceDescription {
     device: DeviceSpec,
 }
 
-#[derive(Deserialize, Debug, Getters)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceSpec {
-    #[get = "pub"]
     #[serde(deserialize_with = "crate::shared::deserialize_urn")]
-    device_type: URN<'static>,
-    #[get = "pub"]
-    friendly_name: String,
-    #[get = "pub"]
-    manufacturer: String,
+    pub device_type: URN<'static>,
+    pub friendly_name: String,
+    pub manufacturer: String,
     #[serde(rename = "manufacturerURL")]
-    #[get = "pub"]
-    manufacturer_url: Option<String>,
-    #[get = "pub"]
-    model_description: Option<String>,
-    #[get = "pub"]
-    model_name: String,
-    #[get = "pub"]
-    model_number: Option<String>,
+    pub manufacturer_url: Option<String>,
+    pub model_description: Option<String>,
+    pub model_number: Option<String>,
     #[serde(rename = "modelURL")]
-    #[get = "pub"]
-    model_url: Option<String>,
-    #[get = "pub"]
-    serial_number: Option<String>,
+    pub model_url: Option<String>,
+    pub serial_number: Option<String>,
     #[serde(rename = "UDN")]
-    #[get = "pub"]
-    udn: String,
+    pub udn: String,
     #[serde(rename = "UPC")]
-    #[get = "pub"]
-    upc: Option<String>,
+    pub upc: Option<String>,
     #[serde(default = "Default::default")]
-    icon_list: Value<Vec<Icon>>,
+    pub icon_list: Value<Vec<Icon>>,
     #[serde(default = "Default::default")]
-    service_list: Value<Vec<Service>>,
+    pub service_list: Value<Vec<Service>>,
     #[serde(default = "Default::default")]
-    device_list: Value<Vec<DeviceSpec>>,
+    pub device_list: Value<Vec<DeviceSpec>>,
     #[serde(rename = "presentationURL")]
-    #[get = "pub"]
-    presentation_url: Option<String>,
+    pub presentation_url: Option<String>,
 }
 
 impl DeviceSpec {
@@ -98,94 +90,49 @@ impl DeviceSpec {
     }
 }
 
-#[derive(Deserialize, Debug, Getters)]
+#[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
-#[get = "pub"]
 pub struct Icon {
-    mimetype: String,
-    width: u32,
-    height: u32,
-    depth: u32,
-    url: String,
+    pub mimetype: String,
+    pub width: u32,
+    pub height: u32,
+    pub depth: u32,
+    pub url: String,
 }
 
 impl DeviceSpec {
-    fn visit_devices<'a, F, T>(&'a self, f: F) -> Option<T>
-    where
-        F: Fn(&'a DeviceSpec) -> Option<T> + Copy,
-    {
-        if let Some(x) = f(&self) {
-            return Some(x);
-        }
-
-        for device in self.devices() {
-            if let Some(x) = device.visit_devices(f) {
-                return Some(x);
-            }
-        }
-
-        None
+    pub fn services_iter(&self) -> impl Iterator<Item = &Service> {
+        self.services().iter().chain(self.devices().iter().flat_map(
+            |device| -> Box<dyn Iterator<Item = &Service>> { Box::new(device.services_iter()) },
+        ))
     }
-
-    fn visit_services<'a, F, T>(&'a self, f: F) -> Option<T>
-    where
-        F: Fn(&'a Service) -> Option<T> + Copy,
-    {
-        self.visit_devices(|device| {
-            for service in device.services() {
-                if let Some(x) = f(service) {
-                    return Some(x);
-                }
-            }
-            None
-        })
-    }
-
     pub fn find_service(&self, service_type: &URN) -> Option<&Service> {
-        self.visit_services(|s| {
-            if s.service_type() == service_type {
-                return Some(s);
-            }
-            None
-        })
+        self.services_iter()
+            .find(|s| s.service_type() == service_type)
     }
 
-    fn get_services_inner<'a>(&'a self, acc: &mut Vec<&'a Service>) {
-        for service in self.services() {
-            acc.push(service);
-        }
-        for device in self.devices() {
-            device.get_services_inner(acc);
-        }
+    pub fn devices_iter(&self) -> impl Iterator<Item = &DeviceSpec> {
+        self.devices().iter().chain(self.devices().iter().flat_map(
+            |device| -> Box<dyn Iterator<Item = &DeviceSpec>> { Box::new(device.devices_iter()) },
+        ))
     }
-    pub fn get_services<'a>(&'a self) -> Vec<&'a Service> {
-        let mut acc = Vec::new();
-        self.get_services_inner(&mut acc);
-        acc
-    }
-
     pub fn find_device(&self, device_type: &URN) -> Option<&DeviceSpec> {
-        self.visit_devices(|device| {
-            if &device.device_type == device_type {
-                return Some(device);
-            }
-            None
-        })
-    }
-
-    fn print_inner(&self, indentation: usize) {
-        let i = "  ".repeat(indentation);
-
-        println!("{}{}", i, self.device_type());
-        for service in self.services() {
-            println!("{}  - {}", i, service.service_type());
-        }
-        for device in self.devices() {
-            device.print_inner(indentation + 1);
-        }
+        self.devices_iter().find(|d| &d.device_type == device_type)
     }
 
     pub fn print(&self) {
-        self.print_inner(0);
+        fn print_inner(device: &DeviceSpec, indentation: usize) {
+            let i = "  ".repeat(indentation);
+
+            println!("{}{}", i, &device.device_type);
+            for service in device.services() {
+                println!("{}  - {}", i, service.service_type());
+            }
+            for device in device.devices() {
+                print_inner(device, indentation + 1);
+            }
+        }
+
+        print_inner(&self, 0);
     }
 }
