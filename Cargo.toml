@@ -11,7 +11,7 @@ serde = { version = "1.0.101", features = ["derive"] }
 serde-xml-rs = "0.3.1"
 ssdp-client = { path = "../ssdp-client" }
 roxmltree = "0.7.1"
-err-derive = "0.1.6"
+err-derive = { git = "https://gitlab.com/icewind/err-derive", branch = "from-by-default" }
 
 [dev-dependencies]
 futures-async-stream = "0.1.0-alpha.7"

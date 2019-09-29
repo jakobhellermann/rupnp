@@ -98,9 +98,13 @@ impl Service {
             .root()
             .first_children()
             .find(|x| x.has_tag_name("Body"))
-            .ok_or(Error::ParseError)?;
+            .ok_or(Error::ParseError(
+                "upnp response doesn't contain a `Body` element",
+            ))?;
 
-        match body.first_element_child().ok_or(Error::ParseError)? {
+        match body.first_element_child().ok_or(Error::ParseError(
+            "the upnp responses `Body` element has no children",
+        ))? {
             fault if fault.tag_name().name() == "Fault" => Err(UPnPError::from_fault_node(fault)),
             res if res.tag_name().name().starts_with(action) => res
                 .children()
@@ -108,11 +112,15 @@ impl Service {
                     if let Some(text) = node.text() {
                         Ok((node.tag_name().name().to_string(), text.to_string()))
                     } else {
-                        Err(Error::ParseError)
+                        Err(Error::ParseError(
+                            "upnp response element has no text attached",
+                        ))
                     }
                 })
                 .collect(),
-            _ => Err(Error::ParseError),
+            _ => Err(Error::ParseError(
+                "upnp response contains neither `fault` nor `${ACTION}Response` element",
+            )),
         }
     }
 

@@ -10,11 +10,11 @@ pub enum Error {
     #[error(display = "invalid utf8: {}", _0)]
     InvalidUtf8(#[error(cause)] std::str::Utf8Error),
     #[error(display = "serde error: {}", _0)]
-    SerdeError(serde_xml_rs::Error),
+    SerdeError(#[cause] serde_xml_rs::Error),
     #[error(display = "failed to parse xml: {}", _0)]
-    XmlError(roxmltree::Error),
+    XmlError(#[cause] roxmltree::Error),
     #[error(display = "failed to parse Control Point response")]
-    ParseError,
+    ParseError(&'static str),
     #[error(display = "Invalid response: {}", _0)]
     InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error(display = "An error occurred trying to connect to device: {}", _0)]
@@ -25,42 +25,26 @@ pub enum Error {
     SSDPError(#[error(cause)] ssdp_client::Error),
 }
 
-impl From<std::str::Utf8Error> for Error {
-    fn from(err: std::str::Utf8Error) -> Error {
-        Error::InvalidUtf8(err)
-    }
-}
-
-impl From<surf::url::ParseError> for Error {
-    fn from(err: surf::url::ParseError) -> Error {
-        Error::InvalidUrl(err)
-    }
-}
-
-impl From<serde_xml_rs::Error> for Error {
-    fn from(err: serde_xml_rs::Error) -> Self {
-        Error::SerdeError(err)
-    }
-}
-
-impl From<roxmltree::Error> for Error {
-    fn from(err: roxmltree::Error) -> Self {
-        Error::XmlError(err)
-    }
-}
-
-impl From<ssdp_client::Error> for Error {
-    fn from(err: ssdp_client::Error) -> Error {
-        Error::SSDPError(err)
-    }
-}
-
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub struct UPnPError {
     fault_code: String,
     fault_string: String,
     err_code: u16,
 }
+
+impl std::error::Error for UPnPError {}
+impl fmt::Display for UPnPError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(
+            f,
+            "{} {}: {}",
+            self.fault_string,
+            self.err_code,
+            self.err_code_description()
+        )
+    }
+}
+
 impl UPnPError {
     pub fn err_code_description(&self) -> &str {
         match self.err_code {
@@ -96,25 +80,22 @@ impl UPnPError {
             }
         }
 
-        let err_code = err_code.and_then(|x| x.parse::<u16>().ok());
-        match (fault_code, fault_string, err_code) {
-            (Some(fault_code), Some(fault_string), Some(err_code)) => Error::UPnPError(UPnPError {
-                fault_code: fault_code.to_string(),
-                fault_string: fault_string.to_string(),
-                err_code,
-            }),
-            _ => Error::ParseError,
+        if let Some(fault_code) = fault_code {
+            if let Some(err_code) = err_code.and_then(|x| x.parse::<u16>().ok()) {
+                if let Some(fault_string) = fault_string {
+                    Error::UPnPError(UPnPError {
+                        fault_code: fault_code.to_string(),
+                        fault_string: fault_string.to_string(),
+                        err_code,
+                    })
+                } else {
+                    Error::ParseError("`fault` element contains no `faulcode`")
+                }
+            } else {
+                Error::ParseError("`fault` element contains no `errCode` or it was malformed")
+            }
+        } else {
+            Error::ParseError("`fault` element contains no `faultcode`")
         }
-    }
-}
-impl fmt::Display for UPnPError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(
-            f,
-            "{} {}: {}",
-            self.fault_string,
-            self.err_code,
-            self.err_code_description()
-        )
     }
 }
