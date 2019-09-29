@@ -28,13 +28,12 @@ async fn subscribe() -> Result<(), upnp::Error> {
     service.subscribe(device.url(), &addr_str).await?;
 
     let listener = TcpListener::bind(addr)
-        .map_err(|err| upnp::Error::NetworkError(Box::new(err)))
         .await?;
     println!("Listening on {}", listener.local_addr().unwrap());
 
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
-        let stream = stream.map_err(|err| upnp::Error::NetworkError(Box::new(err)))?;
+        let stream = stream?;
         task::spawn(async {
             process(stream).await.unwrap();
         });

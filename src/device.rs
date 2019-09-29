@@ -1,26 +1,29 @@
 use crate::service::Service;
 use crate::shared::{SpecVersion, Value};
 use crate::Error;
-use futures::prelude::*;
 use serde::Deserialize;
 use ssdp_client::search::URN;
+use isahc::http::Uri;
 
 #[derive(Debug)]
 pub struct Device {
-    url: surf::url::Url,
+    url: Uri,
     device_spec: DeviceSpec,
 }
 impl Device {
-    pub fn url(&self) -> &surf::url::Url {
+    pub fn url(&self) -> &Uri {
         &self.url
     }
 
-    pub async fn from_url(url: surf::url::Url) -> Result<Self, Error> {
-        let body = surf::get(&url)
-            .recv_string()
-            .map_err(Error::NetworkError)
+    pub async fn from_url(url: Uri) -> Result<Self, Error> {
+        let mut response = isahc::get_async(&url)
             .await?;
 
+        if response.status() != 200 {
+            return Err(Error::HttpErrorCode(response.status()));
+        }
+
+        let body = response.body_mut().text_async().await?;
         let device_description: DeviceDescription = serde_xml_rs::from_reader(body.as_bytes())?;
 
         assert!(

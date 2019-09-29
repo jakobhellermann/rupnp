@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 futures-preview = "0.3.0-alpha.18"
-surf = "1.0.2"
+isahc = { version = "0.7.4", default-features = false, features = ["http2"] }
 serde = { version = "1.0.101", features = ["derive"] }
 serde-xml-rs = "0.3.1"
 ssdp-client = { path = "../ssdp-client" }

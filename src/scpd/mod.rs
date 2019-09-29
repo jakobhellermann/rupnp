@@ -1,7 +1,7 @@
 use crate::shared::Value;
 use crate::Error;
-use futures::prelude::*;
 use serde::Deserialize;
+use isahc::http::Uri;
 
 pub mod datatypes;
 
@@ -9,11 +9,14 @@ pub mod datatypes;
 #[serde(rename_all = "camelCase")]
 pub struct SCPD {
     #[serde(skip_deserializing)]
-    pub urn: String,
+    urn: String,
     service_state_table: Value<Vec<StateVariable>>,
     action_list: Value<Vec<Action>>,
 }
 impl SCPD {
+    pub fn urn(&self) -> &str {
+        &self.urn
+    }
     pub fn state_variables(&self) -> &Vec<StateVariable> {
         &self.service_state_table.value
     }
@@ -21,20 +24,10 @@ impl SCPD {
         &self.action_list.value
     }
 
-    pub fn destructure(self) -> (String, Vec<StateVariable>, Vec<Action>) {
-        (
-            self.urn,
-            self.service_state_table.value,
-            self.action_list.value,
-        )
-    }
+    pub async fn from_url(url: &Uri, urn: String) -> Result<Self, Error> {
+        let mut response = isahc::get_async(url).await?;
 
-    pub async fn from_url(url: &surf::url::Url, urn: String) -> Result<Self, Error> {
-        let body = surf::get(url)
-            .recv_string()
-            .map_err(Error::NetworkError)
-            .await?;
-
+        let body = response.body_mut().text_async().await?;
         let mut scpd: SCPD = serde_xml_rs::from_reader(body.as_bytes())?;
         scpd.urn = urn;
         Ok(scpd)

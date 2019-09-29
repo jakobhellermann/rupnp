@@ -2,15 +2,16 @@ use async_std::task;
 use upnp::device::{Device, DeviceSpec};
 use upnp::scpd::{Action, StateVariable, SCPD};
 use upnp::Error;
+use isahc::http::Uri;
 
 fn main() -> Result<(), upnp::Error> {
-    let url: surf::url::Url = "http://192.168.2.49:1400/xml/device_description.xml"
+    let url: Uri = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
     task::block_on(dump_scpd(url))
 }
 
-async fn dump_scpd(url: surf::url::Url) -> Result<(), Error> {
+async fn dump_scpd(url: Uri) -> Result<(), Error> {
     let device = Device::from_url(url).await?;
     print(&device);
 
@@ -21,7 +22,7 @@ fn print(device: &Device) {
     print_inner(device, device.url(), 0);
 }
 
-fn print_inner(spec: &DeviceSpec, url: &surf::url::Url, indent_lvl: usize) {
+fn print_inner(spec: &DeviceSpec, url: &Uri, indent_lvl: usize) {
     let space = "  ".repeat(indent_lvl);
 
     println!("{} {}", space, &spec.device_type);

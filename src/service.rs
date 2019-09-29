@@ -1,10 +1,10 @@
 use crate::error::{Error, UPnPError};
-use futures::prelude::*;
 use roxmltree::Document;
 use serde::Deserialize;
 use ssdp_client::search::URN;
 use std::collections::HashMap;
-use surf::http::Method;
+use isahc::http::Uri;
+use isahc::prelude::*;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -20,6 +20,20 @@ pub struct Service {
     event_sub_endpoint: String,
 }
 
+fn url_with_path(url: &Uri, path: &str) -> Uri {
+    let mut builder = Uri::builder();
+    if let Some(authority) = url.authority_part() {
+        builder.authority(authority.clone());
+    }
+    if let Some(scheme) = url.scheme_part() {
+        builder.scheme(scheme.clone());
+    }
+    builder
+        .path_and_query(path)
+        .build()
+        .expect("infallible")
+}
+
 impl Service {
     pub fn service_type(&self) -> &URN<'static> {
         &self.service_type
@@ -29,25 +43,19 @@ impl Service {
         &self.service_id
     }
 
-    pub fn control_url(&self, url: &surf::url::Url) -> surf::url::Url {
-        let mut control_url = url.clone();
-        control_url.set_path(&self.control_endpoint);
-        control_url
+    pub fn control_url(&self, url: &Uri) -> Uri {
+        url_with_path(url, &self.control_endpoint)
     }
-    pub fn scpd_url(&self, url: &surf::url::Url) -> surf::url::Url {
-        let mut scpd_url = url.clone();
-        scpd_url.set_path(&self.scpd_endpoint);
-        scpd_url
+    pub fn scpd_url(&self, url: &Uri) -> Uri {
+        url_with_path(url, &self.scpd_endpoint)
     }
-    pub fn event_sub_url(&self, url: &surf::url::Url) -> surf::url::Url {
-        let mut event_sub_url = url.clone();
-        event_sub_url.set_path(&self.event_sub_endpoint);
-        event_sub_url
+    pub fn event_sub_url(&self, url: &Uri) -> Uri {
+        url_with_path(url, &self.event_sub_endpoint)
     }
 
     pub async fn action(
         &self,
-        url: &surf::url::Url,
+        url: &Uri,
         action: &str,
         arguments: HashMap<&str, &str>,
     ) -> Result<HashMap<String, String>, Error> {
@@ -81,18 +89,22 @@ impl Service {
             payload = payload
         );
 
-        let response = surf::post(self.control_url(url))
-            .body_string(body)
-            .set_header("CONTENT-TYPE", "xml")
-            .set_header(
+        let mut response = Request::post(self.control_url(url))
+            .header("CONTENT-TYPE", "xml")
+            .header(
                 "SOAPAction",
                 format!("\"{}#{}\"", &self.service_type, action),
             )
-            .recv_string()
-            .map_err(Error::NetworkError)
+            .body(body).unwrap()
+            .send_async()
             .await?;
 
-        let document = Document::parse(&response)?;
+        if response.status() != 200 {
+            return Err(Error::HttpErrorCode(response.status()));
+        }
+
+        let doc = response.text_async().await?;
+        let document = Document::parse(&doc)?;
 
         let body = document
             .root()
@@ -124,24 +136,22 @@ impl Service {
         }
     }
 
-    pub async fn subscribe(&self, url: &surf::url::Url, callback: &str) -> Result<(), Error> {
-        let mut response = surf::Request::new(
-            Method::from_bytes(b"SUSBSCRIBE").unwrap(),
-            self.event_sub_url(url),
-        )
-        .set_header("CALLBACK", format!("<{}>", callback))
-        .set_header("NT", "upnp:event")
-        .set_header("TIMEOUT", "Second-300")
-        .await
-        .map_err(Error::NetworkError)?;
+    pub async fn subscribe(&self, url: &Uri, callback: &str) -> Result<(), Error> {
+        let response = Request::builder()
+            .uri(self.event_sub_url(url))
+            .method("SUBSCRIBE")
+            .header("CALLBACK", format!("<{}>", callback))
+            .header("NT", "upnp:event")
+            .header("TIMEOUT", "Second-300")
+            .body(()).unwrap()
+            .send_async().await?;
 
         if response.status() != 200 {
             return Err(Error::HttpErrorCode(response.status()));
         }
 
-        let body = response.body_string().await.map_err(Error::NetworkError)?;
-        dbg!(body);
+        dbg!(response.body());
 
-        unimplemented!()
+        Ok(())
     }
 }

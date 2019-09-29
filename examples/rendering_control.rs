@@ -1,5 +1,6 @@
 use async_std::task;
 use upnp::{Device, Error};
+use isahc::http::Uri;
 
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => { {
@@ -20,7 +21,7 @@ fn main() {
     }
 }
 
-async fn get_volume(url: surf::url::Url) -> Result<u16, Error> {
+async fn get_volume(url: Uri) -> Result<u16, Error> {
     let service = "urn:schemas-upnp-org:service:RenderingControl:1"
         .parse()
         .unwrap();

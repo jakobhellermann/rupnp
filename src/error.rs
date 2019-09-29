@@ -6,11 +6,13 @@ pub enum Error {
     #[error(display = "{}", _0)]
     UPnPError(#[error(cause)] UPnPError),
     #[error(display = "invalid url: {}", _0)]
-    InvalidUrl(#[cause] surf::url::ParseError),
+    InvalidUrl(#[cause] isahc::http::uri::InvalidUri),
     #[error(display = "invalid utf8: {}", _0)]
     InvalidUtf8(#[error(cause)] std::str::Utf8Error),
     #[error(display = "serde error: {}", _0)]
     SerdeError(#[cause] serde_xml_rs::Error),
+    #[error(display = "error reading response: {}", _0)]
+    IO(#[error(cause)] std::io::Error),
     #[error(display = "failed to parse xml: {}", _0)]
     XmlError(#[cause] roxmltree::Error),
     #[error(display = "failed to parse Control Point response")]
@@ -18,9 +20,9 @@ pub enum Error {
     #[error(display = "Invalid response: {}", _0)]
     InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
     #[error(display = "An error occurred trying to connect to device: {}", _0)]
-    NetworkError(Box<(dyn std::error::Error + Send + Sync + 'static)>),
+    NetworkError(#[error(cause)] isahc::Error),
     #[error(display = "The control point responded with status code: {}", _0)]
-    HttpErrorCode(surf::http::StatusCode),
+    HttpErrorCode(isahc::http::StatusCode),
     #[error(display = "An error occurred trying to discover devices: {}", _0)]
     SSDPError(#[error(cause)] ssdp_client::Error),
 }
