@@ -25,6 +25,8 @@ pub enum Error {
     HttpErrorCode(isahc::http::StatusCode),
     #[error(display = "An error occurred trying to discover devices: {}", _0)]
     SSDPError(#[error(cause)] ssdp_client::Error),
+    #[error(display = "`{}` element contains no `{}`", _0, _1)]
+    MissingXMLElement(&'static str, &'static str),
 }
 
 #[derive(Debug)]

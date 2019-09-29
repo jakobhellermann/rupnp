@@ -21,15 +21,6 @@ pub struct SpecVersion {
     major: u32,
     minor: u32,
 }
-impl SpecVersion {
-    pub fn major(&self) -> u32 {
-        self.major
-    }
-    #[allow(unused)]
-    pub fn minor(&self) -> u32 {
-        self.minor
-    }
-}
 
 pub(crate) fn deserialize_urn<'de, D>(deserializer: D) -> Result<URN<'static>, D::Error>
 where

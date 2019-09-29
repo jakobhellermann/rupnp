@@ -1,14 +1,40 @@
-use crate::service::Service;
-use crate::shared::{SpecVersion, Value};
 use crate::Error;
+use ssdp_client::search::URN;
 use crate::HttpResponseExt;
 use isahc::http::Uri;
-use serde::Deserialize;
-use ssdp_client::search::URN;
+use roxmltree::Document;
+
+macro_rules! find_in_xml {
+    ( $name:literal $xml:expr => $( $var:ident: $($ty:ty)? $( |optional| $ty_opt:ty)? ,)* ) => { {
+        $(let mut $var: Option<&str> = None;)*
+
+        for node in $xml.descendants() {
+            match node.tag_name().name() {
+                $(stringify!($var) => $var = node.text(),)*
+                _ => (),
+            }
+        }
+
+        $(
+            $(
+                let $var = $var.ok_or_else(|| Error::MissingXMLElement($name, stringify!($var)))?;
+                let $var = $var.parse::<$ty>().map_err(|e| Error::InvalidResponse(Box::new(e)))?;
+            )?
+            $(
+                let $var = match $var {
+                    Some(var) => Some(var.parse::<$ty_opt>().map_err(|e| Error::InvalidResponse(Box::new(e)))?),
+                    None => None,
+                };
+            )?
+        )*
+        Ok::<_, Error>(($($var),*))
+    } }
+}
 
 #[derive(Debug)]
 pub struct Device {
     url: Uri,
+    spec_version: (u8, u8),
     device_spec: DeviceSpec,
 }
 impl Device {
@@ -16,6 +42,7 @@ impl Device {
         &self.url
     }
 
+    #[rustfmt::skip]
     pub async fn from_url(url: Uri) -> Result<Self, Error> {
         let body = isahc::get_async(&url)
             .await?
@@ -24,18 +51,55 @@ impl Device {
             .text_async()
             .await?;
 
-        let device_description: DeviceDescription = serde_xml_rs::from_reader(body.as_bytes())?;
+        let device_description = Document::parse(&body)?;
 
-        assert!(
-            device_description.spec_version.major() == 1,
-            "can only parse spec version 1.x"
-        );
+        #[allow(non_snake_case, unused)]
+        let (
+            major, minor,
+            device_type, friendly_name,
+            manufacturer, manufacturer_url,
+            model_description, model_number, model_url, serial_number,
+            udn, upc,
+            presentation_url
+        ) = find_in_xml! { "Device description" device_description =>
+            major: u8, minor: u8,
+            deviceType: URN, friendlyName: String,
+            manufacturer: String, manufacturerURL: |optional| String, modelDescription: |optional| String, modelNumber: |optional| String, modelURL: |optional| String, serialNumber: |optional| String,
+            UDN: String, UPC: |optional| String,
+            // todo
+            presentationURL: |optional| String,
+        }?;
 
-        Ok(Device {
+        Ok(Self {
             url,
-            device_spec: device_description.device,
+            spec_version: (major, minor),
+            device_spec: DeviceSpec {
+                device_type, friendly_name,
+                manufacturer, manufacturer_url,
+                model_description, model_number, model_url, serial_number,
+                udn, upc,
+                presentation_url
+            },
         })
     }
+}
+
+#[derive(Debug)]
+pub struct DeviceSpec {
+    pub device_type: URN<'static>,
+    pub friendly_name: String,
+    pub manufacturer: String,
+    pub manufacturer_url: Option<String>,
+    pub model_description: Option<String>,
+    pub model_number: Option<String>,
+    pub model_url: Option<String>,
+    pub serial_number: Option<String>,
+    pub udn: String,
+    pub upc: Option<String>,
+    //pub icon_list: Value<Vec<Icon>>,
+    //pub service_list: Value<Vec<Service>>,
+    //pub device_list: Value<Vec<DeviceSpec>>,
+    pub presentation_url: Option<String>,
 }
 
 impl std::ops::Deref for Device {
@@ -46,40 +110,7 @@ impl std::ops::Deref for Device {
     }
 }
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-struct DeviceDescription {
-    spec_version: SpecVersion,
-    device: DeviceSpec,
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct DeviceSpec {
-    #[serde(deserialize_with = "crate::shared::deserialize_urn")]
-    pub device_type: URN<'static>,
-    pub friendly_name: String,
-    pub manufacturer: String,
-    #[serde(rename = "manufacturerURL")]
-    pub manufacturer_url: Option<String>,
-    pub model_description: Option<String>,
-    pub model_number: Option<String>,
-    #[serde(rename = "modelURL")]
-    pub model_url: Option<String>,
-    pub serial_number: Option<String>,
-    #[serde(rename = "UDN")]
-    pub udn: String,
-    #[serde(rename = "UPC")]
-    pub upc: Option<String>,
-    #[serde(default = "Default::default")]
-    pub icon_list: Value<Vec<Icon>>,
-    #[serde(default = "Default::default")]
-    pub service_list: Value<Vec<Service>>,
-    #[serde(default = "Default::default")]
-    pub device_list: Value<Vec<DeviceSpec>>,
-    #[serde(rename = "presentationURL")]
-    pub presentation_url: Option<String>,
-}
+/*
 
 impl DeviceSpec {
     pub fn services(&self) -> &Vec<Service> {
@@ -138,4 +169,4 @@ impl DeviceSpec {
 
         print_inner(&self, 0);
     }
-}
+}*/

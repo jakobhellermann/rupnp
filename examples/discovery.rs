@@ -19,7 +19,6 @@ async fn discovery() -> Result<(), upnp::Error> {
             &device.friendly_name,
             device.url()
         );
-        device.print();
     }
     Ok(())
 }
