@@ -15,3 +15,17 @@ pub use service::Service;
 
 pub use discovery::discover;
 pub use ssdp_client;
+
+trait HttpResponseExt: Sized {
+    fn err_if_not_200(self) -> Result<Self, Error>;
+}
+impl HttpResponseExt for isahc::http::Response<isahc::Body> {
+    fn err_if_not_200(self) -> Result<Self, Error> {
+        if self.status() != 200 {
+            Err(Error::HttpErrorCode(self.status()))
+        } else {
+            Ok(self)
+        }
+    }
+}
+

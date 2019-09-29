@@ -4,6 +4,7 @@ use serde::Deserialize;
 use ssdp_client::search::URN;
 use std::collections::HashMap;
 use isahc::http::Uri;
+use crate::HttpResponseExt;
 use isahc::prelude::*;
 
 #[derive(Deserialize, Debug, Clone)]
@@ -89,7 +90,7 @@ impl Service {
             payload = payload
         );
 
-        let mut response = Request::post(self.control_url(url))
+        let doc = Request::post(self.control_url(url))
             .header("CONTENT-TYPE", "xml")
             .header(
                 "SOAPAction",
@@ -97,13 +98,10 @@ impl Service {
             )
             .body(body).unwrap()
             .send_async()
-            .await?;
+            .await?
+            .err_if_not_200()?
+            .text_async().await?;
 
-        if response.status() != 200 {
-            return Err(Error::HttpErrorCode(response.status()));
-        }
-
-        let doc = response.text_async().await?;
         let document = Document::parse(&doc)?;
 
         let body = document

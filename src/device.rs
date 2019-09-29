@@ -4,6 +4,7 @@ use crate::Error;
 use serde::Deserialize;
 use ssdp_client::search::URN;
 use isahc::http::Uri;
+use crate::HttpResponseExt;
 
 #[derive(Debug)]
 pub struct Device {
@@ -16,14 +17,11 @@ impl Device {
     }
 
     pub async fn from_url(url: Uri) -> Result<Self, Error> {
-        let mut response = isahc::get_async(&url)
-            .await?;
+        let body = isahc::get_async(&url)
+            .await?
+            .err_if_not_200()?
+            .body_mut().text_async().await?;
 
-        if response.status() != 200 {
-            return Err(Error::HttpErrorCode(response.status()));
-        }
-
-        let body = response.body_mut().text_async().await?;
         let device_description: DeviceDescription = serde_xml_rs::from_reader(body.as_bytes())?;
 
         assert!(
