@@ -28,4 +28,3 @@ impl HttpResponseExt for isahc::http::Response<isahc::Body> {
         }
     }
 }
-

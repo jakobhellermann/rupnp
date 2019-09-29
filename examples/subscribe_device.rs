@@ -27,8 +27,7 @@ async fn subscribe() -> Result<(), upnp::Error> {
     let service = device.find_service(&service).unwrap();
     service.subscribe(device.url(), &addr_str).await?;
 
-    let listener = TcpListener::bind(addr)
-        .await?;
+    let listener = TcpListener::bind(addr).await?;
     println!("Listening on {}", listener.local_addr().unwrap());
 
     let mut incoming = listener.incoming();

@@ -1,6 +1,6 @@
 use async_std::task;
-use upnp::{Device, Error};
 use isahc::http::Uri;
+use upnp::{Device, Error};
 
 macro_rules! map(
     { $($key:expr => $value:expr),+ } => { {

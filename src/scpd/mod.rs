@@ -1,8 +1,8 @@
 use crate::shared::Value;
-use crate::HttpResponseExt;
 use crate::Error;
-use serde::Deserialize;
+use crate::HttpResponseExt;
 use isahc::http::Uri;
+use serde::Deserialize;
 
 pub mod datatypes;
 
@@ -26,9 +26,12 @@ impl SCPD {
     }
 
     pub async fn from_url(url: &Uri, urn: String) -> Result<Self, Error> {
-        let body = isahc::get_async(url).await?
+        let body = isahc::get_async(url)
+            .await?
             .err_if_not_200()?
-            .body_mut().text_async().await?;
+            .body_mut()
+            .text_async()
+            .await?;
 
         let mut scpd: SCPD = serde_xml_rs::from_reader(body.as_bytes())?;
         scpd.urn = urn;

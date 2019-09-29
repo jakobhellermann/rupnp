@@ -1,11 +1,11 @@
 use crate::error::{Error, UPnPError};
+use crate::HttpResponseExt;
+use isahc::http::Uri;
+use isahc::prelude::*;
 use roxmltree::Document;
 use serde::Deserialize;
 use ssdp_client::search::URN;
 use std::collections::HashMap;
-use isahc::http::Uri;
-use crate::HttpResponseExt;
-use isahc::prelude::*;
 
 #[derive(Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -29,10 +29,7 @@ fn url_with_path(url: &Uri, path: &str) -> Uri {
     if let Some(scheme) = url.scheme_part() {
         builder.scheme(scheme.clone());
     }
-    builder
-        .path_and_query(path)
-        .build()
-        .expect("infallible")
+    builder.path_and_query(path).build().expect("infallible")
 }
 
 impl Service {
@@ -96,11 +93,13 @@ impl Service {
                 "SOAPAction",
                 format!("\"{}#{}\"", &self.service_type, action),
             )
-            .body(body).unwrap()
+            .body(body)
+            .unwrap()
             .send_async()
             .await?
             .err_if_not_200()?
-            .text_async().await?;
+            .text_async()
+            .await?;
 
         let document = Document::parse(&doc)?;
 
@@ -141,8 +140,10 @@ impl Service {
             .header("CALLBACK", format!("<{}>", callback))
             .header("NT", "upnp:event")
             .header("TIMEOUT", "Second-300")
-            .body(()).unwrap()
-            .send_async().await?;
+            .body(())
+            .unwrap()
+            .send_async()
+            .await?;
 
         if response.status() != 200 {
             return Err(Error::HttpErrorCode(response.status()));

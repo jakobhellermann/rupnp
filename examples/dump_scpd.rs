@@ -1,8 +1,8 @@
 use async_std::task;
+use isahc::http::Uri;
 use upnp::device::{Device, DeviceSpec};
 use upnp::scpd::{Action, StateVariable, SCPD};
 use upnp::Error;
-use isahc::http::Uri;
 
 fn main() -> Result<(), upnp::Error> {
     let url: Uri = "http://192.168.2.49:1400/xml/device_description.xml"
