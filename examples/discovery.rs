@@ -3,8 +3,10 @@
 use futures_async_stream::for_await;
 use std::time::Duration;
 
-fn main() -> Result<(), upnp::Error> {
-    async_std::task::block_on(discovery())
+fn main() {
+    if let Err(e) = async_std::task::block_on(discovery()) {
+        eprintln!("{}", e);
+    }
 }
 
 async fn discovery() -> Result<(), upnp::Error> {
@@ -15,8 +17,8 @@ async fn discovery() -> Result<(), upnp::Error> {
         let device = device?;
         println!(
             "{} - {} @ {}",
-            &device.device_type,
-            &device.friendly_name,
+            device.device_type(),
+            device.friendly_name(),
             device.url()
         );
     }

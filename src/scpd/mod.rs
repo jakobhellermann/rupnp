@@ -1,31 +1,36 @@
-use crate::shared::Value;
+use crate::find_in_xml;
 use crate::Error;
 use crate::HttpResponseExt;
 use isahc::http::Uri;
-use serde::Deserialize;
+use roxmltree::Document;
+use roxmltree::Node;
+use ssdp_client::search::URN;
+use std::rc::Rc;
 
+mod action;
 pub mod datatypes;
+mod state_variable;
+pub use action::*;
+pub use state_variable::*;
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct SCPD {
-    #[serde(skip_deserializing)]
-    urn: String,
-    service_state_table: Value<Vec<StateVariable>>,
-    action_list: Value<Vec<Action>>,
+    urn: URN<'static>,
+    state_variables: Vec<Rc<StateVariable>>,
+    actions: Vec<Action>,
 }
 impl SCPD {
-    pub fn urn(&self) -> &str {
+    pub fn urn(&self) -> &URN<'static> {
         &self.urn
     }
-    pub fn state_variables(&self) -> &Vec<StateVariable> {
-        &self.service_state_table.value
+    pub fn state_variables(&self) -> &Vec<Rc<StateVariable>> {
+        &self.state_variables
     }
     pub fn actions(&self) -> &Vec<Action> {
-        &self.action_list.value
+        &self.actions
     }
 
-    pub async fn from_url(url: &Uri, urn: String) -> Result<Self, Error> {
+    pub async fn from_url(url: &Uri, urn: URN<'static>) -> Result<Self, Error> {
         let body = isahc::get_async(url)
             .await?
             .err_if_not_200()?
@@ -33,243 +38,28 @@ impl SCPD {
             .text_async()
             .await?;
 
-        let mut scpd: SCPD = serde_xml_rs::from_reader(body.as_bytes())?;
-        scpd.urn = urn;
-        Ok(scpd)
-    }
-}
+        let document = Document::parse(&body)?;
+        let scpd = crate::find_root(&document, "scpd", "Service Control Point Definition")?;
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Action {
-    name: String,
-    #[serde(default = "Default::default")]
-    argument_list: Value<Vec<Argument>>,
-}
-impl Action {
-    pub fn name(&self) -> &String {
-        &self.name
-    }
+        #[allow(non_snake_case)]
+        let (state_variables, actions) = find_in_xml! { scpd => serviceStateTable, actionList };
 
-    pub fn arguments(&self) -> &Vec<Argument> {
-        &self.argument_list.value
-    }
+        let state_variables: Vec<_> = state_variables
+            .children()
+            .filter(Node::is_element)
+            .map(StateVariable::from_xml)
+            .map(|sv| sv.map(Rc::new))
+            .collect::<Result<_, _>>()?;
+        let actions = actions
+            .children()
+            .filter(Node::is_element)
+            .map(|node| Action::from_xml(node, &state_variables))
+            .collect::<Result<_, _>>()?;
 
-    pub fn input_arguments(&self) -> impl Iterator<Item = &Argument> {
-        self.argument_list
-            .value
-            .iter()
-            .filter(|arg| arg.direction.is_in())
+        Ok(Self {
+            urn,
+            state_variables,
+            actions,
+        })
     }
-    pub fn output_arguments(&self) -> impl Iterator<Item = &Argument> {
-        self.argument_list
-            .value
-            .iter()
-            .filter(|arg| arg.direction.is_out())
-    }
-
-    pub fn destructure(self) -> (String, Vec<Argument>) {
-        (self.name, self.argument_list.value)
-    }
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Argument {
-    pub name: String,
-    pub direction: Direction,
-    related_state_variable: String,
-}
-impl Argument {
-    pub fn name(&self) -> &str {
-        &self.name
-    }
-
-    pub fn direction(&self) -> &Direction {
-        &self.direction
-    }
-
-    pub fn related_state_variable(&self) -> &str {
-        self.related_state_variable
-            .trim_start_matches("A_ARG_TYPE_")
-    }
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum Direction {
-    In,
-    Out,
-}
-impl Direction {
-    pub fn is_in(&self) -> bool {
-        match self {
-            Direction::In => true,
-            Direction::Out => false,
-        }
-    }
-    pub fn is_out(&self) -> bool {
-        !self.is_in()
-    }
-}
-
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct StateVariable {
-    name: String,
-    #[serde(default = "Bool::yes")]
-    ///Defines whether event messages will be generated when the value of this state variable changes.
-    send_events_attribute: Bool,
-    #[serde(default = "Bool::no")]
-    ///Defines whether event messages will be delivered using multicast eventing.
-    multicast: Bool,
-    data_type: DataType,
-    default_value: Option<String>,
-    allowed_value_list: Option<Value<Vec<String>>>,
-    allowed_value_range: Option<AllowedValueRange>,
-    optional: Option<()>,
-}
-
-impl StateVariable {
-    pub fn name(&self) -> &str {
-        self.name.trim_start_matches("A_ARG_TYPE_")
-    }
-
-    pub fn optional(&self) -> bool {
-        self.optional.is_some()
-    }
-
-    pub fn send_events(&self) -> bool {
-        self.send_events_attribute.into()
-    }
-
-    pub fn multicast(&self) -> bool {
-        self.multicast.into()
-    }
-
-    pub fn datatype(&self) -> &DataType {
-        &self.data_type
-    }
-
-    pub fn allowed_values(&self) -> Option<&Vec<String>> {
-        self.allowed_value_list.as_ref().map(|x| &x.value)
-    }
-
-    pub fn allowed_value_range(&self) -> Option<&AllowedValueRange> {
-        self.allowed_value_range.as_ref()
-    }
-
-    pub fn default_value(&self) -> Option<&String> {
-        self.default_value.as_ref()
-    }
-
-    // pub fn datatype_input(&self) -> &str {
-    //     if self.allowed_values().is_some() {
-    //         self.name()
-    //     } else {
-    //         match &self.data_type {
-    //             DataType::ui1 => "u8",
-    //             DataType::ui2 => "u16",
-    //             DataType::ui4 => "u32",
-    //             DataType::ui8 => "u64",
-    //             DataType::i1 => "i8",
-    //             DataType::i2 => "i16",
-    //             DataType::i4 => "i32",
-    //             DataType::int => "i64",
-    //             /* */
-    //             DataType::char => "char",
-    //             DataType::string => "String",
-    //             /* */
-    //             DataType::boolean => "bool",
-    //             /* */
-    //             DataType::uri => "hyper::Uri",
-    //             _ => unimplemented!("{:?}", self),
-    //         }
-    //     }
-    // }
-
-    // pub fn datatype_output(&self) -> &str {
-    //     match self.data_type() {
-    //         DataType::boolean => "upnp::Bool",
-    //         _ => self.datatype_input(),
-    //     }
-    // }
-}
-
-#[derive(Deserialize, Debug, Copy, Clone)]
-#[serde(rename_all = "camelCase")]
-pub enum Bool {
-    Yes,
-    No,
-}
-impl Bool {
-    fn yes() -> Self {
-        Bool::Yes
-    }
-    fn no() -> Self {
-        Bool::No
-    }
-}
-impl Into<bool> for Bool {
-    fn into(self) -> bool {
-        match self {
-            Bool::Yes => true,
-            Bool::No => false,
-        }
-    }
-}
-
-#[derive(Deserialize, Debug)]
-#[allow(non_camel_case_types)]
-pub enum DataType {
-    ui1,
-    ui2,
-    ui4,
-    ui8,
-    i1,
-    i2,
-    i4,
-    int,
-    r4,
-    r8,
-    number,
-    float,
-    fixed14_4,
-    char,
-    string,
-    date,
-    dateTime,
-    dateTimeTz,
-    time,
-    timeTz,
-    boolean,
-    binBase64,
-    binHex,
-    uri,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct AllowedValueRange {
-    ///Inclusive lower bound
-    #[serde(default = "one")]
-    minimum: i64,
-    ///Inclusive upper bound.
-    #[serde(default = "one")]
-    maximum: i64,
-    #[serde(default = "one")]
-    step: i64,
-}
-impl AllowedValueRange {
-    pub fn minimum(&self) -> i64 {
-        self.minimum
-    }
-    pub fn maximum(&self) -> i64 {
-        self.maximum
-    }
-    pub fn step(&self) -> i64 {
-        self.step
-    }
-}
-const fn one() -> i64 {
-    1
 }

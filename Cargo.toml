@@ -7,11 +7,9 @@ edition = "2018"
 [dependencies]
 futures-preview = "0.3.0-alpha.18"
 isahc = { version = "0.7.4", default-features = false, features = ["http2"] }
-serde = { version = "1.0.101", features = ["derive"] }
-serde-xml-rs = "0.3.1"
 ssdp-client = { path = "../ssdp-client" }
 roxmltree = "0.7.1"
-err-derive = { git = "https://gitlab.com/icewind/err-derive", branch = "from-by-default" }
+err-derive = { git = "https://gitlab.com/torkleyy/err-derive" }
 
 [dev-dependencies]
 futures-async-stream = "0.1.0-alpha.7"

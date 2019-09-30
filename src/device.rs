@@ -1,40 +1,12 @@
-use crate::Error;
-use ssdp_client::search::URN;
-use crate::HttpResponseExt;
+use crate::{find_in_xml, HttpResponseExt};
+use crate::{Error, Service};
 use isahc::http::Uri;
-use roxmltree::Document;
-
-macro_rules! find_in_xml {
-    ( $name:literal $xml:expr => $( $var:ident: $($ty:ty)? $( |optional| $ty_opt:ty)? ,)* ) => { {
-        $(let mut $var: Option<&str> = None;)*
-
-        for node in $xml.descendants() {
-            match node.tag_name().name() {
-                $(stringify!($var) => $var = node.text(),)*
-                _ => (),
-            }
-        }
-
-        $(
-            $(
-                let $var = $var.ok_or_else(|| Error::MissingXMLElement($name, stringify!($var)))?;
-                let $var = $var.parse::<$ty>().map_err(|e| Error::InvalidResponse(Box::new(e)))?;
-            )?
-            $(
-                let $var = match $var {
-                    Some(var) => Some(var.parse::<$ty_opt>().map_err(|e| Error::InvalidResponse(Box::new(e)))?),
-                    None => None,
-                };
-            )?
-        )*
-        Ok::<_, Error>(($($var),*))
-    } }
-}
+use roxmltree::{Document, Node};
+use ssdp_client::search::URN;
 
 #[derive(Debug)]
 pub struct Device {
     url: Uri,
-    spec_version: (u8, u8),
     device_spec: DeviceSpec,
 }
 impl Device {
@@ -51,44 +23,29 @@ impl Device {
             .text_async()
             .await?;
 
-        let device_description = Document::parse(&body)?;
+        let document = Document::parse(&body)?;
+        let device = crate::find_root(&document, "device", "Device Description")?;
+        let device_spec = DeviceSpec::from_xml(device)?;
 
-        #[allow(non_snake_case, unused)]
-        let (
-            major, minor,
-            device_type, friendly_name,
-            manufacturer, manufacturer_url,
-            model_description, model_number, model_url, serial_number,
-            udn, upc,
-            presentation_url
-        ) = find_in_xml! { "Device description" device_description =>
-            major: u8, minor: u8,
-            deviceType: URN, friendlyName: String,
-            manufacturer: String, manufacturerURL: |optional| String, modelDescription: |optional| String, modelNumber: |optional| String, modelURL: |optional| String, serialNumber: |optional| String,
-            UDN: String, UPC: |optional| String,
-            // todo
-            presentationURL: |optional| String,
-        }?;
+        Ok(Self { url, device_spec })
+    }
+}
+impl std::ops::Deref for Device {
+    type Target = DeviceSpec;
 
-        Ok(Self {
-            url,
-            spec_version: (major, minor),
-            device_spec: DeviceSpec {
-                device_type, friendly_name,
-                manufacturer, manufacturer_url,
-                model_description, model_number, model_url, serial_number,
-                udn, upc,
-                presentation_url
-            },
-        })
+    fn deref(&self) -> &Self::Target {
+        &self.device_spec
     }
 }
 
 #[derive(Debug)]
 pub struct DeviceSpec {
-    pub device_type: URN<'static>,
-    pub friendly_name: String,
-    pub manufacturer: String,
+    device_type: URN<'static>,
+    friendly_name: String,
+
+    devices: Vec<DeviceSpec>,
+    services: Vec<Service>,
+    /*pub manufacturer: String,
     pub manufacturer_url: Option<String>,
     pub model_description: Option<String>,
     pub model_number: Option<String>,
@@ -99,42 +56,51 @@ pub struct DeviceSpec {
     //pub icon_list: Value<Vec<Icon>>,
     //pub service_list: Value<Vec<Service>>,
     //pub device_list: Value<Vec<DeviceSpec>>,
-    pub presentation_url: Option<String>,
+    pub presentation_url: Option<String>,*/
 }
-
-impl std::ops::Deref for Device {
-    type Target = DeviceSpec;
-
-    fn deref(&self) -> &Self::Target {
-        &self.device_spec
-    }
-}
-
-/*
 
 impl DeviceSpec {
-    pub fn services(&self) -> &Vec<Service> {
-        &self.service_list.value
+    fn from_xml<'a, 'input: 'a>(node: Node<'a, 'input>) -> Result<Self, Error> {
+        #[allow(non_snake_case)]
+        let (device_type, friendly_name, services, devices) =
+            find_in_xml! { node => deviceType, friendlyName, serviceList, ?deviceList };
+
+        let devices = match devices {
+            Some(d) => d
+                .children()
+                .filter(Node::is_element)
+                .map(DeviceSpec::from_xml)
+                .collect::<Result<_, _>>()?,
+            None => Vec::new(),
+        };
+        let services = services
+            .children()
+            .filter(Node::is_element)
+            .map(Service::from_xml)
+            .collect::<Result<_, _>>()?;
+
+        Ok(Self {
+            device_type: crate::parse_node_text(device_type)?,
+            friendly_name: crate::parse_node_text(friendly_name)?,
+            devices,
+            services,
+        })
     }
+
+    pub fn device_type(&self) -> &URN<'static> {
+        &self.device_type
+    }
+    pub fn friendly_name(&self) -> &str {
+        &self.friendly_name
+    }
+
     pub fn devices(&self) -> &Vec<DeviceSpec> {
-        &self.device_list.value
+        &self.devices
     }
-    pub fn icons(&self) -> &Vec<Icon> {
-        &self.icon_list.value
+    pub fn services(&self) -> &Vec<Service> {
+        &self.services
     }
-}
 
-#[derive(Deserialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub struct Icon {
-    pub mimetype: String,
-    pub width: u32,
-    pub height: u32,
-    pub depth: u32,
-    pub url: String,
-}
-
-impl DeviceSpec {
     pub fn services_iter(&self) -> impl Iterator<Item = &Service> {
         self.services().iter().chain(self.devices().iter().flat_map(
             |device| -> Box<dyn Iterator<Item = &Service>> { Box::new(device.services_iter()) },
@@ -169,4 +135,4 @@ impl DeviceSpec {
 
         print_inner(&self, 0);
     }
-}*/
+}

@@ -9,8 +9,6 @@ pub enum Error {
     InvalidUrl(#[cause] isahc::http::uri::InvalidUri),
     #[error(display = "invalid utf8: {}", _0)]
     InvalidUtf8(#[error(cause)] std::str::Utf8Error),
-    #[error(display = "serde error: {}", _0)]
-    SerdeError(#[cause] serde_xml_rs::Error),
     #[error(display = "error reading response: {}", _0)]
     IO(#[error(cause)] std::io::Error),
     #[error(display = "failed to parse xml: {}", _0)]
@@ -25,8 +23,10 @@ pub enum Error {
     HttpErrorCode(isahc::http::StatusCode),
     #[error(display = "An error occurred trying to discover devices: {}", _0)]
     SSDPError(#[error(cause)] ssdp_client::Error),
-    #[error(display = "`{}` element contains no `{}`", _0, _1)]
-    MissingXMLElement(&'static str, &'static str),
+    #[error(display = "`{}` contains no `{}` element ", _0, _1)]
+    XMLMissingElement(String, String),
+    #[error(display = "element `{}`'s text is empty", _0)]
+    XMLMissingText(String),
 }
 
 #[derive(Debug)]

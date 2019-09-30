@@ -1,38 +1,36 @@
 use crate::error::{Error, UPnPError};
-use crate::HttpResponseExt;
+use crate::SCPD;
+use crate::{find_in_xml, HttpResponseExt};
 use isahc::http::Uri;
 use isahc::prelude::*;
-use roxmltree::Document;
-use serde::Deserialize;
+use roxmltree::{Document, Node};
 use ssdp_client::search::URN;
 use std::collections::HashMap;
 
-#[derive(Deserialize, Debug, Clone)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct Service {
-    #[serde(deserialize_with = "crate::shared::deserialize_urn")]
     service_type: URN<'static>,
     service_id: String,
-    #[serde(rename = "SCPDURL")]
     scpd_endpoint: String,
-    #[serde(rename = "controlURL")]
     control_endpoint: String,
-    #[serde(rename = "eventSubURL")]
     event_sub_endpoint: String,
 }
 
-fn url_with_path(url: &Uri, path: &str) -> Uri {
-    let mut builder = Uri::builder();
-    if let Some(authority) = url.authority_part() {
-        builder.authority(authority.clone());
-    }
-    if let Some(scheme) = url.scheme_part() {
-        builder.scheme(scheme.clone());
-    }
-    builder.path_and_query(path).build().expect("infallible")
-}
-
 impl Service {
+    pub(crate) fn from_xml(node: Node) -> Result<Self, Error> {
+        #[allow(non_snake_case)]
+        let (service_type, service_id, scpd_endpoint, control_endpoint, event_sub_endpoint) =
+            find_in_xml! { node => serviceType, serviceId, SCPDURL, controlURL, eventSubURL };
+
+        Ok(Self {
+            service_type: crate::parse_node_text(service_type)?,
+            service_id: crate::parse_node_text(service_id)?,
+            scpd_endpoint: crate::parse_node_text(scpd_endpoint)?,
+            control_endpoint: crate::parse_node_text(control_endpoint)?,
+            event_sub_endpoint: crate::parse_node_text(event_sub_endpoint)?,
+        })
+    }
+
     pub fn service_type(&self) -> &URN<'static> {
         &self.service_type
     }
@@ -49,6 +47,10 @@ impl Service {
     }
     pub fn event_sub_url(&self, url: &Uri) -> Uri {
         url_with_path(url, &self.event_sub_endpoint)
+    }
+
+    pub async fn scpd(&self, url: &Uri) -> Result<SCPD, Error> {
+        Ok(SCPD::from_url(&self.scpd_url(url), self.service_type().clone()).await?)
     }
 
     pub async fn action(
@@ -102,14 +104,7 @@ impl Service {
             .await?;
 
         let document = Document::parse(&doc)?;
-
-        let body = document
-            .root()
-            .first_children()
-            .find(|x| x.has_tag_name("Body"))
-            .ok_or(Error::ParseError(
-                "upnp response doesn't contain a `Body` element",
-            ))?;
+        let body = crate::find_root(&document, "Body", "UPnP Response")?;
 
         match body.first_element_child().ok_or(Error::ParseError(
             "the upnp responses `Body` element has no children",
@@ -117,6 +112,7 @@ impl Service {
             fault if fault.tag_name().name() == "Fault" => Err(UPnPError::from_fault_node(fault)),
             res if res.tag_name().name().starts_with(action) => res
                 .children()
+                .filter(Node::is_element)
                 .map(|node| -> Result<(String, String), Error> {
                     if let Some(text) = node.text() {
                         Ok((node.tag_name().name().to_string(), text.to_string()))
@@ -149,8 +145,19 @@ impl Service {
             return Err(Error::HttpErrorCode(response.status()));
         }
 
-        dbg!(response.body());
+        println!("{:?}", response.body());
 
         Ok(())
     }
+}
+
+fn url_with_path(url: &Uri, path: &str) -> Uri {
+    let mut builder = Uri::builder();
+    if let Some(authority) = url.authority_part() {
+        builder.authority(authority.clone());
+    }
+    if let Some(scheme) = url.scheme_part() {
+        builder.scheme(scheme.clone());
+    }
+    builder.path_and_query(path).build().expect("infallible")
 }
