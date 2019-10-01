@@ -23,7 +23,7 @@ fn print(spec: &DeviceSpec, url: &Uri, indent_lvl: usize) -> Result<(), Error> {
     println!("{} {}", space, spec.device_type());
 
     for service in spec.services() {
-        println!("{} - {}", space, service.service_id());
+        println!("{} - {}", space, service.service_type());
 
         let scpd = task::block_on(service.scpd(&url))?;
 

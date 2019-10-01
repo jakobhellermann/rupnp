@@ -13,7 +13,7 @@ pub enum Error {
     IO(#[error(cause)] std::io::Error),
     #[error(display = "failed to parse xml: {}", _0)]
     XmlError(#[cause] roxmltree::Error),
-    #[error(display = "failed to parse Control Point response")]
+    #[error(display = "failed to parse Control Point response: {}", _0)]
     ParseError(&'static str),
     #[error(display = "Invalid response: {}", _0)]
     InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),

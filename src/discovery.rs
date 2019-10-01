@@ -4,7 +4,7 @@ use ssdp_client::search::SearchTarget;
 use std::time::Duration;
 
 pub async fn discover(
-    search_target: SearchTarget<'_>,
+    search_target: SearchTarget,
     timeout: Duration,
 ) -> Result<impl Stream<Item = Result<Device, Error>>, Error> {
     Ok(ssdp_client::search(search_target, timeout, 3)

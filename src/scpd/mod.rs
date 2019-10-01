@@ -15,12 +15,12 @@ pub use state_variable::*;
 
 #[derive(Debug)]
 pub struct SCPD {
-    urn: URN<'static>,
+    urn: URN,
     state_variables: Vec<Rc<StateVariable>>,
     actions: Vec<Action>,
 }
 impl SCPD {
-    pub fn urn(&self) -> &URN<'static> {
+    pub fn urn(&self) -> &URN {
         &self.urn
     }
     pub fn state_variables(&self) -> &Vec<Rc<StateVariable>> {
@@ -30,7 +30,7 @@ impl SCPD {
         &self.actions
     }
 
-    pub async fn from_url(url: &Uri, urn: URN<'static>) -> Result<Self, Error> {
+    pub async fn from_url(url: &Uri, urn: URN) -> Result<Self, Error> {
         let body = isahc::get_async(url)
             .await?
             .err_if_not_200()?

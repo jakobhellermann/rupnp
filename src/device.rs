@@ -40,7 +40,7 @@ impl std::ops::Deref for Device {
 
 #[derive(Debug)]
 pub struct DeviceSpec {
-    device_type: URN<'static>,
+    device_type: URN,
     friendly_name: String,
 
     devices: Vec<DeviceSpec>,
@@ -87,7 +87,7 @@ impl DeviceSpec {
         })
     }
 
-    pub fn device_type(&self) -> &URN<'static> {
+    pub fn device_type(&self) -> &URN {
         &self.device_type
     }
     pub fn friendly_name(&self) -> &str {

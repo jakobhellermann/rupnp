@@ -1,5 +1,8 @@
 use crate::Error;
-use crate::{find_in_xml, scpd::{StateVariable, DataType}};
+use crate::{
+    find_in_xml,
+    scpd::{DataType, StateVariable},
+};
 use roxmltree::Node;
 use std::fmt;
 use std::rc::Rc;
@@ -85,7 +88,9 @@ impl fmt::Display for Argument {
         write!(f, "{}: ", &self.name)?;
 
         match (self.state_var.datatype(), self.state_var.allowed_values()) {
-            (DataType::String, Some(allowed_values)) => write!(f, "[{}]", allowed_values.join(", "))?,
+            (DataType::String, Some(allowed_values)) => {
+                write!(f, "[{}]", allowed_values.join(", "))?
+            }
             (datatype, None) => write!(f, "{}", datatype)?,
             _ => unreachable!(),
         }
@@ -119,7 +124,7 @@ impl Argument {
             direction: crate::parse_node_text(direction)?,
             state_var,
         })
-    } 
+    }
     pub fn name(&self) -> &str {
         &self.name
     }

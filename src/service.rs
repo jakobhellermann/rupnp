@@ -9,7 +9,7 @@ use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct Service {
-    service_type: URN<'static>,
+    service_type: URN,
     service_id: String,
     scpd_endpoint: String,
     control_endpoint: String,
@@ -31,7 +31,7 @@ impl Service {
         })
     }
 
-    pub fn service_type(&self) -> &URN<'static> {
+    pub fn service_type(&self) -> &URN {
         &self.service_type
     }
 
@@ -57,9 +57,10 @@ impl Service {
         &self,
         url: &Uri,
         action: &str,
-        arguments: HashMap<&str, &str>,
+        //arguments: HashMap<&str, &str>,
+        payload: &str,
     ) -> Result<HashMap<String, String>, Error> {
-        let mut payload = String::with_capacity(
+        /*let mut payload = String::with_capacity(
             arguments
                 .iter()
                 .map(|(k, v)| 2 * k.len() + v.len() + 5)
@@ -73,7 +74,7 @@ impl Service {
             payload.push_str("</");
             payload.push_str(k);
             payload.push('>');
-        }
+        }*/
         let body = format!(
             r#"
             <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
@@ -106,26 +107,28 @@ impl Service {
         let document = Document::parse(&doc)?;
         let body = crate::find_root(&document, "Body", "UPnP Response")?;
 
-        match body.first_element_child().ok_or(Error::ParseError(
+        let first_child = body.first_element_child().ok_or(Error::ParseError(
             "the upnp responses `Body` element has no children",
-        ))? {
-            fault if fault.tag_name().name() == "Fault" => Err(UPnPError::from_fault_node(fault)),
-            res if res.tag_name().name().starts_with(action) => res
+        ))?;
+
+        if first_child.tag_name().name().eq_ignore_ascii_case("Fault") {
+            Err(UPnPError::from_fault_node(first_child))
+        } else if first_child.tag_name().name().starts_with(action) {
+            Ok(first_child
                 .children()
                 .filter(Node::is_element)
-                .map(|node| -> Result<(String, String), Error> {
+                .filter_map(|node| -> Option<(String, String)> {
                     if let Some(text) = node.text() {
-                        Ok((node.tag_name().name().to_string(), text.to_string()))
+                        Some((node.tag_name().name().to_string(), text.to_string()))
                     } else {
-                        Err(Error::ParseError(
-                            "upnp response element has no text attached",
-                        ))
+                        None
                     }
                 })
-                .collect(),
-            _ => Err(Error::ParseError(
+                .collect::<HashMap<_, _>>())
+        } else {
+            Err(Error::ParseError(
                 "upnp response contains neither `fault` nor `${ACTION}Response` element",
-            )),
+            ))
         }
     }
 
