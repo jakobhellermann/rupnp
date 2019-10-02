@@ -133,8 +133,8 @@ impl std::str::FromStr for DataType {
             "time" => Ok(DataType::Time),
             "timeTz" => Ok(DataType::TimeTz),
             "boolean" => Ok(DataType::Boolean),
-            "binBase64" => Ok(DataType::BinBase64),
-            "binHex" => Ok(DataType::BinHex),
+            "bin.base64" => Ok(DataType::BinBase64),
+            "bin.hex" => Ok(DataType::BinHex),
             "uri" => Ok(DataType::Uri),
             _ => Err(ParseDataTypeErr(s.to_string())),
         }

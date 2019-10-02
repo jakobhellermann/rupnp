@@ -57,24 +57,8 @@ impl Service {
         &self,
         url: &Uri,
         action: &str,
-        //arguments: HashMap<&str, &str>,
         payload: &str,
     ) -> Result<HashMap<String, String>, Error> {
-        /*let mut payload = String::with_capacity(
-            arguments
-                .iter()
-                .map(|(k, v)| 2 * k.len() + v.len() + 5)
-                .sum(),
-        );
-        for (k, v) in &arguments {
-            payload.push('<');
-            payload.push_str(k);
-            payload.push('>');
-            payload.push_str(v);
-            payload.push_str("</");
-            payload.push_str(k);
-            payload.push('>');
-        }*/
         let body = format!(
             r#"
             <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
