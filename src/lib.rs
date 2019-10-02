@@ -1,6 +1,3 @@
-#![feature(const_generics, generators, stmt_expr_attributes, proc_macro_hygiene)]
-#![allow(incomplete_features)]
-
 pub mod device;
 mod discovery;
 pub mod error;

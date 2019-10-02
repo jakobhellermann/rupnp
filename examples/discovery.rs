@@ -1,6 +1,4 @@
-#![feature(stmt_expr_attributes, proc_macro_hygiene)]
-
-use futures_async_stream::for_await;
+use futures::prelude::*;
 use std::time::Duration;
 
 fn main() {
@@ -11,9 +9,9 @@ fn main() {
 
 async fn discovery() -> Result<(), upnp::Error> {
     let search_target = "urn:schemas-upnp-org:device:ZonePlayer:1".parse().unwrap();
+    let mut devices = upnp::discover(&search_target, Duration::from_secs(1)).await?;
 
-    #[for_await]
-    for device in upnp::discover(search_target, Duration::from_secs(1)).await? {
+    while let Some(device) = devices.next().await {
         let device = device?;
         println!(
             "{} - {} @ {}",

@@ -12,5 +12,4 @@ roxmltree = "0.7.1"
 err-derive = { git = "https://gitlab.com/torkleyy/err-derive" }
 
 [dev-dependencies]
-futures-async-stream = "0.1.0-alpha.7"
 async-std = "0.99.8"
