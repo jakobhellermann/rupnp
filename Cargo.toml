@@ -9,7 +9,6 @@ futures-preview = "0.3.0-alpha.18"
 isahc = { version = "0.7.4", default-features = false, features = ["http2"] }
 ssdp-client = { path = "../ssdp-client" }
 roxmltree = "0.7.1"
-err-derive = { git = "https://gitlab.com/torkleyy/err-derive" }
 
 [dev-dependencies]
 async-std = "0.99.8"

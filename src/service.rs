@@ -112,7 +112,7 @@ impl Service {
         ))?;
 
         if first_child.tag_name().name().eq_ignore_ascii_case("Fault") {
-            Err(UPnPError::from_fault_node(first_child))
+            Err(UPnPError::from_fault_node(first_child)?.into())
         } else if first_child.tag_name().name().starts_with(action) {
             Ok(first_child
                 .children()

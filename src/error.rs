@@ -1,32 +1,80 @@
-use err_derive::Error;
 use std::fmt;
 
-#[derive(Error, Debug)]
+#[derive(Debug)]
 pub enum Error {
-    #[error(display = "{}", _0)]
-    UPnPError(#[error(cause)] UPnPError),
-    #[error(display = "invalid url: {}", _0)]
-    InvalidUrl(#[cause] isahc::http::uri::InvalidUri),
-    #[error(display = "invalid utf8: {}", _0)]
-    InvalidUtf8(#[error(cause)] std::str::Utf8Error),
-    #[error(display = "error reading response: {}", _0)]
-    IO(#[error(cause)] std::io::Error),
-    #[error(display = "failed to parse xml: {}", _0)]
-    XmlError(#[cause] roxmltree::Error),
-    #[error(display = "failed to parse Control Point response: {}", _0)]
+    UPnPError(UPnPError),
+    InvalidUrl(isahc::http::uri::InvalidUri),
+    InvalidUtf8(std::str::Utf8Error),
+    IO(std::io::Error),
+    XmlError(roxmltree::Error),
     ParseError(&'static str),
-    #[error(display = "Invalid response: {}", _0)]
     InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
-    #[error(display = "An error occurred trying to connect to device: {}", _0)]
-    NetworkError(#[error(cause)] isahc::Error),
-    #[error(display = "The control point responded with status code: {}", _0)]
+    NetworkError(isahc::Error),
     HttpErrorCode(isahc::http::StatusCode),
-    #[error(display = "An error occurred trying to discover devices: {}", _0)]
-    SSDPError(#[error(cause)] ssdp_client::Error),
-    #[error(display = "`{}` contains no `{}` element ", _0, _1)]
+    SSDPError(ssdp_client::Error),
     XMLMissingElement(String, String),
-    #[error(display = "element `{}`'s text is empty", _0)]
     XMLMissingText(String),
+}
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            Error::UPnPError(err) => write!(f, "{}", err),
+            Error::InvalidUrl(err) => write!(f, "invalid url: {}", err),
+            Error::InvalidUtf8(err) => write!(f, "invalid utf8: {}", err),
+            Error::IO(err) => write!(f, "error reading response: {}", err),
+            Error::XmlError(err) => write!(f, "failed to parse xml: {}", err),
+            Error::ParseError(err) => write!(f, "{}", err),
+            Error::InvalidResponse(err) => write!(f, "Invalid response {}", err),
+            Error::NetworkError(err) => write!(f, "An error occurred trying to connect to device: {}", err),
+            Error::HttpErrorCode(code) => write!(f, "The control point responded with status code {}", code),
+            Error::SSDPError(err) => write!(f, "error trying to discover devices: {}", err),
+            Error::XMLMissingElement(parent, child) => write!(f, "`{}` does not contain an `{}` element or attribute", parent, child),
+            Error::XMLMissingText(element) => write!(f, "element `{}`'s text is empty", element),
+        }
+    }
+}
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::UPnPError(err) => Some(err),
+            Error::InvalidUrl(err) => Some(err),
+            Error::XmlError(err) => Some(err),
+            //Error::InvalidResponse(err) => Some(err),
+            Error::NetworkError(err) => Some(err),
+            Error::SSDPError(err) => Some(err),
+            _ => None,
+        }
+    }
+}
+impl From<isahc::Error> for Error {
+    fn from(err: isahc::Error) -> Self {
+        Error::NetworkError(err)
+    }
+}
+impl From<roxmltree::Error> for Error {
+    fn from(err: roxmltree::Error) -> Self {
+        Error::XmlError(err)
+    }
+}
+impl From<std::io::Error> for Error {
+    fn from(err: std::io::Error) -> Self {
+        Error::IO(err)
+    }
+}
+impl From<isahc::http::uri::InvalidUri> for Error {
+    fn from(err: isahc::http::uri::InvalidUri) -> Self {
+        Error::InvalidUrl(err)
+    }
+}
+impl From<ssdp_client::Error> for Error {
+    fn from(err: ssdp_client::Error) -> Self {
+        Error::SSDPError(err)
+    }
+}
+impl From<UPnPError> for Error {
+    fn from(err: UPnPError) -> Self {
+        Error::UPnPError(err)
+    }
 }
 
 #[derive(Debug)]
@@ -70,7 +118,7 @@ impl UPnPError {
         }
     }
 
-    pub(crate) fn from_fault_node(node: roxmltree::Node) -> Error {
+    pub(crate) fn from_fault_node(node: roxmltree::Node) -> Result<UPnPError, Error> {
         let mut fault_code = None;
         let mut fault_string = None;
         let mut err_code = None;
@@ -83,23 +131,21 @@ impl UPnPError {
                 _ => (),
             }
         }
+        
+        let fault_code = fault_code
+            .ok_or(Error::ParseError("`fault` element contains no `faultcode`"))?
+            .to_string();
+        let fault_string = fault_string
+            .ok_or(Error::ParseError("`fault` element contains no `errCode` or it wasn't an integer"))?
+            .to_string();
+        let err_code = err_code
+            .and_then(|err_code| err_code.parse().ok())
+            .ok_or(Error::ParseError("`fault` element contains no `faultcode`"))?;
 
-        if let Some(fault_code) = fault_code {
-            if let Some(err_code) = err_code.and_then(|x| x.parse::<u16>().ok()) {
-                if let Some(fault_string) = fault_string {
-                    Error::UPnPError(UPnPError {
-                        fault_code: fault_code.to_string(),
-                        fault_string: fault_string.to_string(),
-                        err_code,
-                    })
-                } else {
-                    Error::ParseError("`fault` element contains no `faulcode`")
-                }
-            } else {
-                Error::ParseError("`fault` element contains no `errCode` or it was malformed")
-            }
-        } else {
-            Error::ParseError("`fault` element contains no `faultcode`")
-        }
+        Ok(UPnPError {
+            fault_code,
+            fault_string,
+            err_code,
+        })
     }
 }
