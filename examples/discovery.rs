@@ -10,8 +10,9 @@ fn main() {
 async fn discovery() -> Result<(), upnp::Error> {
     // let search_target = "urn:schemas-upnp-org:device:ZonePlayer:1".parse().unwrap();
     let search_target = ssdp_client::SearchTarget::RootDevice;
-    let mut devices = upnp::discover(&search_target, Duration::from_secs(1)).await?;
+    let devices = upnp::discover(&search_target, Duration::from_secs(3)).await?;
 
+    futures::pin_mut!(devices);
     while let Some(device) = devices.next().await {
         let device = device?;
         println!(

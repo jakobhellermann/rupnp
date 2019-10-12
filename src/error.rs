@@ -25,10 +25,18 @@ impl fmt::Display for Error {
             Error::XmlError(err) => write!(f, "failed to parse xml: {}", err),
             Error::ParseError(err) => write!(f, "{}", err),
             Error::InvalidResponse(err) => write!(f, "Invalid response {}", err),
-            Error::NetworkError(err) => write!(f, "An error occurred trying to connect to device: {}", err),
-            Error::HttpErrorCode(code) => write!(f, "The control point responded with status code {}", code),
+            Error::NetworkError(err) => {
+                write!(f, "An error occurred trying to connect to device: {}", err)
+            }
+            Error::HttpErrorCode(code) => {
+                write!(f, "The control point responded with status code {}", code)
+            }
             Error::SSDPError(err) => write!(f, "error trying to discover devices: {}", err),
-            Error::XMLMissingElement(parent, child) => write!(f, "`{}` does not contain an `{}` element or attribute", parent, child),
+            Error::XMLMissingElement(parent, child) => write!(
+                f,
+                "`{}` does not contain an `{}` element or attribute",
+                parent, child
+            ),
             Error::XMLMissingText(element) => write!(f, "element `{}`'s text is empty", element),
         }
     }
@@ -131,12 +139,14 @@ impl UPnPError {
                 _ => (),
             }
         }
-        
+
         let fault_code = fault_code
             .ok_or(Error::ParseError("`fault` element contains no `faultcode`"))?
             .to_string();
         let fault_string = fault_string
-            .ok_or(Error::ParseError("`fault` element contains no `errCode` or it wasn't an integer"))?
+            .ok_or(Error::ParseError(
+                "`fault` element contains no `errCode` or it wasn't an integer",
+            ))?
             .to_string();
         let err_code = err_code
             .and_then(|err_code| err_code.parse().ok())

@@ -1,5 +1,8 @@
 use crate::{Device, Error};
-use futures::stream::{FuturesUnordered, Stream};
+use futures_util::{
+    stream::{Stream, StreamExt},
+    try_stream::TryStreamExt,
+};
 use ssdp_client::search::SearchTarget;
 use std::time::Duration;
 
@@ -9,10 +12,9 @@ pub async fn discover(
 ) -> Result<impl Stream<Item = Result<Device, Error>>, Error> {
     Ok(ssdp_client::search(search_target, timeout, 3)
         .await?
-        .iter()
-        .map(|search_response| search_response.location().to_string().parse())
-        .collect::<Result<Vec<_>, _>>()?
-        .into_iter()
-        .map(Device::from_url)
-        .collect::<FuturesUnordered<_>>())
+        .map(|res| match res {
+            Ok(search_response) => Ok(search_response.location().to_string().parse()?),
+            Err(e) => Err(Error::SSDPError(e)),
+        })
+        .and_then(|x| Device::from_url(x)))
 }

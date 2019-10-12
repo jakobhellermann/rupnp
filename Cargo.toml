@@ -5,10 +5,10 @@ authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 edition = "2018"
 
 [dependencies]
-futures-preview = "0.3.0-alpha.18"
+futures-util-preview = "0.3.0-alpha.19"
 isahc = { version = "0.7.4", default-features = false, features = ["http2"] }
 ssdp-client = { path = "../ssdp-client" }
 roxmltree = "0.7.1"
 
 [dev-dependencies]
-async-std = "0.99.8"
+async-std = "0.99.9"
