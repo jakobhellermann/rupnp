@@ -1,6 +1,8 @@
 use std::fmt;
 
+/// The UPnP Error type.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     UPnPError(UPnPError),
     InvalidUrl(isahc::http::uri::InvalidUri),
@@ -15,6 +17,12 @@ pub enum Error {
     XMLMissingElement(String, String),
     XMLMissingText(String),
 }
+impl Error {
+    pub fn invalid_response<E: std::error::Error + Send + Sync + 'static>(err: E) -> Error {
+        Error::InvalidResponse(Box::new(err))
+    }
+}
+
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {

@@ -1,13 +1,10 @@
-use async_std::{
-    io,
-    net::{TcpListener, TcpStream},
-    task,
-};
-use futures::prelude::*;
+use async_std::io;
+use async_std::net::{TcpListener, TcpStream};
+use async_std::prelude::*;
 use upnp::Device;
 
 fn main() {
-    if let Err(e) = task::block_on(subscribe()) {
+    if let Err(e) = async_std::task::block_on(subscribe()) {
         eprintln!("{}", e);
     }
 }
@@ -33,7 +30,7 @@ async fn subscribe() -> Result<(), upnp::Error> {
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
         let stream = stream?;
-        task::spawn(async {
+        async_std::task::spawn(async {
             process(stream).await.unwrap();
         });
     }

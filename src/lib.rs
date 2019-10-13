@@ -67,11 +67,9 @@ where
     E: std::error::Error + Send + Sync + 'static,
 {
     node.text()
-        /*.ok_or_else(|| Error::XMLMissingText(node.tag_name().name().to_string()))
-        .and_then(|s| s.parse().map_err(|e| Error::InvalidResponse(Box::new(e))))*/
         .unwrap_or_default()
         .parse()
-        .map_err(|e| Error::InvalidResponse(Box::new(e)))
+        .map_err(Error::invalid_response)
 }
 
 pub(crate) fn find_root<'a, 'input: 'a>(

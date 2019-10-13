@@ -2,7 +2,7 @@ use crate::{find_in_xml, HttpResponseExt};
 use crate::{Error, Service};
 use isahc::http::Uri;
 use roxmltree::{Document, Node};
-use ssdp_client::search::URN;
+use ssdp_client::URN;
 
 #[derive(Debug)]
 pub struct Device {

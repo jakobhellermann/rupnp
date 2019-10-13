@@ -1,4 +1,5 @@
-use futures::prelude::*;
+use async_std::prelude::*;
+use pin_utils::pin_mut;
 use std::time::Duration;
 
 fn main() {
@@ -12,7 +13,7 @@ async fn discovery() -> Result<(), upnp::Error> {
     let search_target = ssdp_client::SearchTarget::RootDevice;
     let devices = upnp::discover(&search_target, Duration::from_secs(3)).await?;
 
-    futures::pin_mut!(devices);
+    pin_mut!(devices);
     while let Some(device) = devices.next().await {
         let device = device?;
         println!(
