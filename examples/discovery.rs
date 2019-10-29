@@ -1,6 +1,7 @@
 use async_std::prelude::*;
-use pin_utils::pin_mut;
 use std::time::Duration;
+
+use upnp::ssdp::SearchTarget;
 
 fn main() {
     if let Err(e) = async_std::task::block_on(discovery()) {
@@ -9,11 +10,9 @@ fn main() {
 }
 
 async fn discovery() -> Result<(), upnp::Error> {
-    // let search_target = "urn:schemas-upnp-org:device:ZonePlayer:1".parse().unwrap();
-    let search_target = ssdp_client::SearchTarget::RootDevice;
-    let devices = upnp::discover(&search_target, Duration::from_secs(3)).await?;
+    let devices = upnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3)).await?;
+    pin_utils::pin_mut!(devices);
 
-    pin_mut!(devices);
     while let Some(device) = devices.next().await {
         let device = device?;
         println!(

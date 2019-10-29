@@ -2,70 +2,92 @@ use crate::find_in_xml;
 use crate::Error;
 use roxmltree::Node;
 use std::fmt;
+use std::ops::RangeInclusive;
 
+/// A `StateVariable` is the type of every [Argument](struct.Argument.html) in UPnP Actions.
+/// It is either a single value, an enumeration of strings or an integer range: see
+/// [StateVariableKind](enum.StateVariableKind.html).
 #[derive(Debug)]
 pub struct StateVariable {
     name: String,
-    datatype: DataType,
     default: Option<String>,
-    allowed_values: Option<Vec<String>>,
-    allowed_range: Option<AllowedValueRange>,
+    kind: StateVariableKind,
     optional: bool,
 }
+
+/// The type of a state variable.
+#[derive(Debug)]
+pub enum StateVariableKind {
+    /// Just a value of some datatype
+    Simple(DataType),
+    /// An enumeration of possible strings. Can have a default value.
+    Enum(Vec<String>),
+    /// A Range of integer values.
+    Range(RangeInclusive<i64>, i64),
+}
+
 impl fmt::Display for StateVariable {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self.name())
     }
 }
 
 impl StateVariable {
-    pub(crate) fn from_xml(node: Node) -> Result<Self, Error> {
+    pub(crate) fn from_xml(node: Node<'_, '_>) -> Result<Self, Error> {
         #[allow(non_snake_case)]
-        let (name, datatype, default, allowed_values, allowed_range, optional) = find_in_xml! { node => name, dataType, ?defaultValue, ?allowedValueList, ?allowedValueRange, ?optional };
+        let (name, datatype, default, variants, range, optional) = find_in_xml! { node => name, dataType, ?defaultValue, ?allowedValueList, ?allowedValueRange, ?optional };
 
-        let allowed_range = allowed_range.map(AllowedValueRange::from_xml).transpose()?;
-        let allowed_values = allowed_values
-            .map(|a: Node| {
+        let variants = variants
+            .map(|a| {
                 a.children()
                     .filter(Node::is_element)
                     .map(crate::parse_node_text)
                     .collect()
             })
             .transpose()?;
-        let default = default.map(crate::parse_node_text).transpose()?;
 
-        Ok(Self {
-            name: crate::parse_node_text(name)?,
-            datatype: crate::parse_node_text(datatype)?,
+        let default = default.map(crate::parse_node_text).transpose()?;
+        let range = range.map(range_from_xml).transpose()?;
+
+        let name = crate::parse_node_text(name)?;
+        let datatype = crate::parse_node_text(datatype)?;
+        let optional = optional.is_some();
+
+        let kind = match (variants, range) {
+            (None, None) => Ok(StateVariableKind::Simple(datatype)),
+            (Some(variants), None) => Ok(StateVariableKind::Enum(variants)),
+            (None, Some((range, step))) => Ok(StateVariableKind::Range(range, step)),
+            (Some(_), Some(_)) => Err(Error::ParseError(
+                "both `AllowedValues` and `AllowedValueRange` is set",
+            )),
+        }?;
+
+        Ok(StateVariable {
+            name,
+            kind,
             default,
-            allowed_values,
-            allowed_range,
-            optional: optional.is_some(),
+            optional,
         })
     }
 
     pub fn name(&self) -> &str {
-        &self.name //.trim_start_matches("A_ARG_TYPE_")
+        &self.name
     }
 
-    pub fn datatype(&self) -> DataType {
-        self.datatype
+    pub fn default(&self) -> Option<&str> {
+        self.default.as_deref()
     }
 
-    pub fn allowed_values(&self) -> Option<&Vec<String>> {
-        self.allowed_values.as_ref()
+    pub fn optional(&self) -> bool {
+        self.optional
     }
 
-    pub fn allowed_value_range(&self) -> Option<&AllowedValueRange> {
-        self.allowed_range.as_ref()
-    }
-
-    pub fn default_value(&self) -> Option<&String> {
-        self.default.as_ref()
+    pub fn kind(&self) -> &StateVariableKind {
+        &self.kind
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum DataType {
     ui1,
@@ -94,7 +116,7 @@ pub enum DataType {
     Uri,
 }
 impl fmt::Display for DataType {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self, f)
     }
 }
@@ -102,7 +124,7 @@ impl fmt::Display for DataType {
 #[derive(Debug)]
 pub struct ParseDataTypeErr(String);
 impl fmt::Display for ParseDataTypeErr {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "invalid data type: {}", self.0)
     }
 }
@@ -141,34 +163,13 @@ impl std::str::FromStr for DataType {
     }
 }
 
-#[derive(Debug)]
-pub struct AllowedValueRange {
-    ///Inclusive lower bound
-    minimum: i64,
-    ///Inclusive upper bound.
-    maximum: i64,
-    step: i64,
-}
-impl AllowedValueRange {
-    fn from_xml(node: Node) -> Result<Self, Error> {
-        #[allow(non_snake_case)]
-        let (minimum, maximum, step) = find_in_xml! { node => minimum, maximum, ?step };
+fn range_from_xml(node: Node<'_, '_>) -> Result<(RangeInclusive<i64>, i64), Error> {
+    #[allow(non_snake_case)]
+    let (minimum, maximum, step) = find_in_xml! { node => minimum, maximum, ?step };
 
-        let step = step.map(crate::parse_node_text).transpose()?.unwrap_or(1);
+    let step = step.map(crate::parse_node_text).transpose()?.unwrap_or(1);
+    let minimum = crate::parse_node_text(minimum)?;
+    let maximum = crate::parse_node_text(maximum)?;
 
-        Ok(Self {
-            minimum: crate::parse_node_text(minimum)?,
-            maximum: crate::parse_node_text(maximum)?,
-            step,
-        })
-    }
-    pub fn minimum(&self) -> i64 {
-        self.minimum
-    }
-    pub fn maximum(&self) -> i64 {
-        self.maximum
-    }
-    pub fn step(&self) -> i64 {
-        self.step
-    }
+    Ok((minimum..=maximum, step))
 }

@@ -8,11 +8,13 @@ use ssdp_client::search::URN;
 use std::rc::Rc;
 
 mod action;
-pub mod datatypes;
 mod state_variable;
 pub use action::*;
 pub use state_variable::*;
 
+/// Service Control Protocol Description.
+/// It contains information about a particular service, more specifically its actions and state
+/// variables.
 #[derive(Debug)]
 pub struct SCPD {
     urn: URN,
@@ -30,6 +32,8 @@ impl SCPD {
         &self.actions
     }
 
+    /// Fetches the SCPD description.
+    /// The `urn` has to be provided because it isn't included in the description.
     pub async fn from_url(url: &Uri, urn: URN) -> Result<Self, Error> {
         let body = isahc::get_async(url)
             .await?

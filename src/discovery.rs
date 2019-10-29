@@ -6,6 +6,7 @@ use futures_util::{
 use ssdp_client::search::SearchTarget;
 use std::time::Duration;
 
+/// Discover UPnP devices on the network.
 pub async fn discover(
     search_target: &SearchTarget,
     timeout: Duration,
@@ -16,5 +17,5 @@ pub async fn discover(
             Ok(search_response) => Ok(search_response.location().to_string().parse()?),
             Err(e) => Err(Error::SSDPError(e)),
         })
-        .and_then(|x| Device::from_url(x)))
+        .and_then(Device::from_url))
 }

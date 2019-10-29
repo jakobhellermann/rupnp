@@ -1,6 +1,8 @@
 use async_std::io;
-use async_std::net::{TcpListener, TcpStream};
+use async_std::net::TcpListener;
 use async_std::prelude::*;
+
+use upnp::ssdp::URN;
 use upnp::Device;
 
 fn main() {
@@ -10,40 +12,22 @@ fn main() {
 }
 
 async fn subscribe() -> Result<(), upnp::Error> {
-    let addr: std::net::SocketAddr = ([192, 168, 2, 91], 3000).into();
-    let addr_str = format!("http://{}", addr);
-
     let url = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
-    let service = "urn:schemas-upnp-org:service:AVTransport:1"
-        .parse()
-        .unwrap();
+    let urn = URN::service("schemas-upnp-org", "AVTransport", 1);
+    let addr = "http://192.168.2.91:3000";
 
     let device = Device::from_url(url).await?;
-    let service = device.find_service(&service).unwrap();
-    service.subscribe(device.url(), &addr_str).await?;
+    let service = device.find_service(&urn).unwrap();
 
-    let listener = TcpListener::bind(addr).await?;
-    println!("Listening on {}", listener.local_addr().unwrap());
+    let listener = TcpListener::bind(addr.trim_start_matches("http://")).await?;
 
-    let mut incoming = listener.incoming();
-    while let Some(stream) = incoming.next().await {
-        let stream = stream?;
-        async_std::task::spawn(async {
-            process(stream).await.unwrap();
-        });
+    service.subscribe(device.url(), addr).await?;
+
+    while let Some(stream) = listener.incoming().next().await {
+        io::copy(&mut stream?, &mut io::stdout()).await?;
     }
-
-    Ok(())
-}
-
-async fn process(stream: TcpStream) -> io::Result<()> {
-    println!("Accepted from: {}", stream.peer_addr()?);
-
-    let (reader, _) = &mut (&stream, &stream);
-
-    io::copy(reader, &mut io::stdout()).await?;
 
     Ok(())
 }

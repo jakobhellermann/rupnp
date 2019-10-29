@@ -24,7 +24,7 @@ impl Error {
 }
 
 impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::UPnPError(err) => write!(f, "{}", err),
             Error::InvalidUrl(err) => write!(f, "invalid url: {}", err),
@@ -102,7 +102,7 @@ pub struct UPnPError {
 
 impl std::error::Error for UPnPError {}
 impl fmt::Display for UPnPError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
             "{} {}: {}",
@@ -134,7 +134,7 @@ impl UPnPError {
         }
     }
 
-    pub(crate) fn from_fault_node(node: roxmltree::Node) -> Result<UPnPError, Error> {
+    pub(crate) fn from_fault_node(node: roxmltree::Node<'_, '_>) -> Result<UPnPError, Error> {
         let mut fault_code = None;
         let mut fault_string = None;
         let mut err_code = None;

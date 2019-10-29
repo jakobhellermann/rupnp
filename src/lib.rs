@@ -1,17 +1,36 @@
-pub mod device;
-mod discovery;
-pub mod error;
-pub mod scpd;
-pub mod service;
+#![feature(external_doc)]
+#![warn(
+    nonstandard_style,
+    rust_2018_idioms,
+    future_incompatible,
+    missing_debug_implementations
+)]
 
-pub use device::Device;
+//! An asynchronous library for finding UPnP control points, performing actions on them
+//! and reading their service descriptions.
+//! UPnP stand for `Universal Plug and Play` and is widely used for routers, WiFi-enabled speakers
+//! and media servers.
+//!
+//! # Example usage:
+//! ```rust,no_run
+#![doc(include = "../examples/search_and_action.rs")]
+//! ```
+
+mod device;
+mod discovery;
+mod error;
+
+/// Service Control Protocol Description.
+pub mod scpd;
+mod service;
+
+pub use device::{Device, DeviceSpec};
+pub use discovery::discover;
 pub use error::Error;
-pub use scpd::datatypes::Bool;
-pub use scpd::SCPD;
 pub use service::Service;
 
-pub use discovery::discover;
-pub use ssdp_client;
+/// Reexport for the ssdp lib, `SearchTarget` and `URN` appear in the public API.
+pub use ssdp_client as ssdp;
 
 trait HttpResponseExt: Sized {
     fn err_if_not_200(self) -> Result<Self, Error>;
@@ -61,7 +80,7 @@ macro_rules! find_in_xml {
     } }
 }
 
-pub(crate) fn parse_node_text<T, E>(node: Node) -> Result<T, Error>
+pub(crate) fn parse_node_text<T, E>(node: Node<'_, '_>) -> Result<T, Error>
 where
     T: std::str::FromStr<Err = E>,
     E: std::error::Error + Send + Sync + 'static,
@@ -73,7 +92,7 @@ where
 }
 
 pub(crate) fn find_root<'a, 'input: 'a>(
-    document: &'input Document,
+    document: &'input Document<'_>,
     element: &str,
     docname: &str,
 ) -> Result<Node<'a, 'input>, Error> {

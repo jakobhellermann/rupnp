@@ -1,19 +1,20 @@
-use crate::Error;
-use crate::{
-    find_in_xml,
-    scpd::{DataType, StateVariable},
-};
+use crate::scpd::{StateVariable, StateVariableKind};
+use crate::{find_in_xml, Error};
 use roxmltree::Node;
 use std::fmt;
 use std::rc::Rc;
 
+/// An SCPD action.
+/// The action consists of its name used in the services
+/// [`action`](../struct.Service.html#method.action) function and a List of
+/// [`Argument`](struct.Argument.html)s
 #[derive(Debug)]
 pub struct Action {
     name: String,
     arguments: Vec<Argument>,
 }
 impl fmt::Display for Action {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}(", self.name())?;
 
         for e in self.input_arguments().take(1) {
@@ -39,7 +40,7 @@ impl fmt::Display for Action {
 
 impl Action {
     pub(crate) fn from_xml(
-        node: Node,
+        node: Node<'_, '_>,
         state_variables: &[Rc<StateVariable>],
     ) -> Result<Self, Error> {
         #[allow(non_snake_case)]
@@ -70,32 +71,40 @@ impl Action {
     }
 
     pub fn input_arguments(&self) -> impl Iterator<Item = &Argument> {
-        self.arguments.iter().filter(|arg| arg.direction.is_in())
+        self.arguments.iter().filter(|a| a.is_input())
     }
     pub fn output_arguments(&self) -> impl Iterator<Item = &Argument> {
-        self.arguments.iter().filter(|arg| arg.direction.is_out())
+        self.arguments.iter().filter(|a| a.is_output())
     }
 }
 
+/// Every argument has its associated [`StateVariable`](struct.StateVariable.html), which contains
+/// more information about its possible values/range/etc.
 #[derive(Debug)]
 pub struct Argument {
-    pub name: String,
-    pub direction: Direction,
-    pub state_var: Rc<StateVariable>,
+    name: String,
+    // if not input, it is an output
+    is_input: bool,
+    state_var: Rc<StateVariable>,
 }
 impl fmt::Display for Argument {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}: ", &self.name)?;
 
-        match (self.state_var.datatype(), self.state_var.allowed_values()) {
-            (DataType::String, Some(allowed_values)) => {
-                write!(f, "[{}]", allowed_values.join(", "))?
+        match self.state_var.kind() {
+            StateVariableKind::Simple(datatype) => write!(f, "{}", datatype)?,
+            StateVariableKind::Enum(variants) => {
+                write!(f, "[{}]", variants.join(", "))?;
             }
-            (datatype, None) => write!(f, "{}", datatype)?,
-            _ => unreachable!(),
+            StateVariableKind::Range(range, step) => {
+                write!(f, "{:?}", range)?;
+                if *step != 1 {
+                    write!(f, ":{}", step)?;
+                }
+            }
         }
 
-        if let Some(default) = self.state_var.default_value() {
+        if let Some(default) = self.state_var.default() {
             write!(f, " = {}", default)?;
         }
 
@@ -104,7 +113,7 @@ impl fmt::Display for Argument {
 }
 
 impl Argument {
-    fn from_xml(node: Node, state_variables: &[Rc<StateVariable>]) -> Result<Self, Error> {
+    fn from_xml(node: Node<'_, '_>, state_variables: &[Rc<StateVariable>]) -> Result<Self, Error> {
         #[allow(non_snake_case)]
         let (name, direction, related_statevar) =
             find_in_xml! { node => name, direction, relatedStateVariable };
@@ -119,9 +128,16 @@ impl Argument {
             .expect("every argument has it's corresponding state variable")
             .clone();
 
+        let direction = direction.text().unwrap_or_default().to_ascii_lowercase();
+        let is_input = match direction.as_str() {
+            "in" => Ok(true),
+            "out" => Ok(false),
+            _ => Err(Error::invalid_response(ParseDirectionErr(direction))),
+        }?;
+
         Ok(Self {
             name: crate::parse_node_text(name)?,
-            direction: crate::parse_node_text(direction)?,
+            is_input,
             state_var,
         })
     }
@@ -129,8 +145,11 @@ impl Argument {
         &self.name
     }
 
-    pub fn direction(&self) -> Direction {
-        self.direction
+    pub fn is_input(&self) -> bool {
+        self.is_input
+    }
+    pub fn is_output(&self) -> bool {
+        !self.is_input
     }
 
     pub fn related_state_variable(&self) -> &Rc<StateVariable> {
@@ -138,38 +157,11 @@ impl Argument {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub enum Direction {
-    In,
-    Out,
-}
-impl Direction {
-    pub fn is_in(self) -> bool {
-        match self {
-            Direction::In => true,
-            Direction::Out => false,
-        }
-    }
-    pub fn is_out(self) -> bool {
-        !self.is_in()
-    }
-}
 #[derive(Debug)]
 pub struct ParseDirectionErr(String);
 impl std::fmt::Display for ParseDirectionErr {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "invalid direction: `{}`", &self.0)
     }
 }
 impl std::error::Error for ParseDirectionErr {}
-impl std::str::FromStr for Direction {
-    type Err = ParseDirectionErr;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "in" => Ok(Direction::In),
-            "out" => Ok(Direction::Out),
-            _ => Err(ParseDirectionErr(s.to_string())),
-        }
-    }
-}

@@ -3,7 +3,7 @@ use isahc::http::Uri;
 use upnp::{Device, Error};
 
 fn main() {
-    let url = "http://192.168.2.29:1400/xml/device_description.xml"
+    let url = "http://192.168.2.49:1400/xml/device_description.xml"
         .parse()
         .unwrap();
 

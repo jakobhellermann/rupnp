@@ -5,6 +5,9 @@ use roxmltree::{Document, Node};
 use ssdp_client::URN;
 
 #[derive(Debug)]
+/// A UPnP Device.
+/// It stores its `Uri` and a [`DeviceSpec`], which contains information like the device type and
+/// its list of inner devices and services.
 pub struct Device {
     url: Uri,
     device_spec: DeviceSpec,
@@ -14,7 +17,9 @@ impl Device {
         &self.url
     }
 
-    #[rustfmt::skip]
+    /// Creates a UPnP device from the given url.
+    /// The url should point to the `/device_description.xml` or similar of the device.
+    /// If you dont have access to the concrete location, have a look at [`discover`][fn.discover.html] instead.
     pub async fn from_url(url: Uri) -> Result<Self, Error> {
         let body = isahc::get_async(&url)
             .await?
@@ -38,6 +43,8 @@ impl std::ops::Deref for Device {
     }
 }
 
+/// Information about a device, like its 'friendly_name', device type etc.
+/// Also includes its list of subdevices and services.
 #[derive(Debug)]
 pub struct DeviceSpec {
     device_type: URN,
@@ -94,13 +101,21 @@ impl DeviceSpec {
         &self.friendly_name
     }
 
+    /// Returns a list of this devices subdevices.
+    /// Note that this does not recurse, if you want that behaviour use
+    /// [devices_iter](struct.DeviceSpec.html#method.devices_iter) instead.
     pub fn devices(&self) -> &Vec<DeviceSpec> {
         &self.devices
     }
+
+    /// Returns a list of this devices services.
+    /// Note that this does not recurse, if you want that behaviour use
+    /// [services_iter](struct.DeviceSpec.html#method.services_iter) instead.
     pub fn services(&self) -> &Vec<Service> {
         &self.services
     }
 
+    /// Returns an Iterator of all services that can be used from this device.
     pub fn services_iter(&self) -> impl Iterator<Item = &Service> {
         self.services().iter().chain(self.devices().iter().flat_map(
             |device| -> Box<dyn Iterator<Item = &Service>> { Box::new(device.services_iter()) },
@@ -111,6 +126,7 @@ impl DeviceSpec {
             .find(|s| s.service_type() == service_type)
     }
 
+    /// Returns an Iterator of all devices that can be used from this device.
     pub fn devices_iter(&self) -> impl Iterator<Item = &DeviceSpec> {
         self.devices().iter().chain(self.devices().iter().flat_map(
             |device| -> Box<dyn Iterator<Item = &DeviceSpec>> { Box::new(device.devices_iter()) },
@@ -120,7 +136,8 @@ impl DeviceSpec {
         self.devices_iter().find(|d| &d.device_type == device_type)
     }
 
-    pub fn print(&self) {
+    #[allow(dead_code)]
+    fn print(&self) {
         fn print_inner(device: &DeviceSpec, indentation: usize) {
             let i = "  ".repeat(indentation);
 
