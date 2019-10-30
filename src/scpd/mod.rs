@@ -1,7 +1,7 @@
 use crate::find_in_xml;
+use crate::http::Uri;
 use crate::Error;
 use crate::HttpResponseExt;
-use isahc::http::Uri;
 use roxmltree::Document;
 use roxmltree::Node;
 use ssdp_client::search::URN;

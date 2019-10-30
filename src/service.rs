@@ -1,11 +1,21 @@
-use crate::error::{Error, UPnPError};
+use crate::error::UPnPError;
 use crate::scpd::SCPD;
 use crate::{find_in_xml, HttpResponseExt};
-use isahc::http::Uri;
+use crate::{Error, Result};
+
+use async_std::io::BufReader;
+use async_std::net::TcpListener;
+use async_std::prelude::*;
+use futures_async_stream::async_try_stream_block;
+use get_if_addrs::{get_if_addrs, Interface};
+
+use crate::http::Uri;
 use isahc::prelude::*;
 use roxmltree::{Document, Node};
 use ssdp_client::search::URN;
+
 use std::collections::HashMap;
+use std::net::{IpAddr, SocketAddrV4};
 
 /// A UPnP Service is the description of endpoints on a device for performing actions and reading
 /// the service definition.
@@ -20,7 +30,7 @@ pub struct Service {
 }
 
 impl Service {
-    pub(crate) fn from_xml(node: Node<'_, '_>) -> Result<Self, Error> {
+    pub(crate) fn from_xml(node: Node<'_, '_>) -> Result<Self> {
         #[allow(non_snake_case)]
         let (service_type, service_id, scpd_endpoint, control_endpoint, event_sub_endpoint) =
             find_in_xml! { node => serviceType, serviceId, SCPDURL, controlURL, eventSubURL };
@@ -55,7 +65,7 @@ impl Service {
     }
 
     /// Fetches the [`SCPD`](scpd/struct.SCPD.html) of this service.
-    pub async fn scpd(&self, url: &Uri) -> Result<SCPD, Error> {
+    pub async fn scpd(&self, url: &Uri) -> Result<SCPD> {
         Ok(SCPD::from_url(&self.scpd_url(url), self.service_type().clone()).await?)
     }
 
@@ -94,7 +104,7 @@ impl Service {
         url: &Uri,
         action: &str,
         payload: &str,
-    ) -> Result<HashMap<String, String>, Error> {
+    ) -> Result<HashMap<String, String>> {
         let body = format!(
             r#"
             <s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/"
@@ -152,26 +162,152 @@ impl Service {
         }
     }
 
-    /// Subscribe for state variable changes.
-    /// The control point will make `NOTIFY` requests to the given callback uri.
-    ///
-    /// # Example usage using async-std:
-    /// ```rust,no_run
-    #[doc(include = "../examples/subscribe_device.rs")]
-    /// ```
-    pub async fn subscribe(&self, url: &Uri, callback: &str) -> Result<(), Error> {
-        let _response = Request::builder()
+    async fn make_subscribe_request(
+        &self,
+        url: &Uri,
+        callback: &str,
+        timeout_secs: u32,
+    ) -> Result<String> {
+        let response = Request::builder()
             .uri(self.event_sub_url(url))
             .method("SUBSCRIBE")
             .header("CALLBACK", format!("<{}>", callback))
             .header("NT", "upnp:event")
-            .header("TIMEOUT", "Second-300")
+            .header("TIMEOUT", format!("Second-{}", timeout_secs))
+            //.header("STATEVAR", "ZoneGroupName,ZoneGroupID") // does not work...
             .body(())
             .unwrap()
             .send_async()
             .await?
             .err_if_not_200()?;
+
+        let sid = response
+            .headers()
+            .get("sid")
+            .ok_or_else(|| Error::MissingHeader("SID"))?
+            .to_str()
+            .map_err(|_| Error::ParseError("SID header contained non-visible ASCII bytes"))?
+            .to_string();
+
+        Ok(sid)
+    }
+
+    /// Renew a subscription made with the [subscribe](struct.Service.html#method.subscribe) method.
+    ///
+    /// When the sid is invalid, the control point will respond with a `412 Preconditition failed`.
+    pub async fn renew_subscription(&self, url: &Uri, sid: &str, timeout_secs: u32) -> Result<()> {
+        Request::builder()
+            .uri(self.event_sub_url(url))
+            .method("SUBSCRIBE")
+            .header("SID", sid)
+            .header("TIMEOUT", format!("Second-{}", timeout_secs))
+            .body(())
+            .unwrap()
+            .send_async()
+            .await?
+            .err_if_not_200()?;
+
         Ok(())
+    }
+
+    /// Unsubscribe from further event notifications.
+    ///
+    /// The SID is usually obtained by the [subscribe](struct.Service.html#method.subscribe) method.
+    ///
+    /// When the sid is invalid, the control point will respond with a `412 Preconditition failed`.
+    pub async fn unsubscribe(&self, url: &Uri, sid: &str) -> Result<()> {
+        Request::builder()
+            .uri(self.event_sub_url(url))
+            .method("UNSUBSCRIBE")
+            .header("SID", sid)
+            .body(())
+            .unwrap()
+            .send_async()
+            .await?
+            .err_if_not_200()?;
+
+        Ok(())
+    }
+
+    /// Subscribe for state variable changes.
+    ///
+    /// It returns the SID which can be used to unsubscribe to the service and a stream of
+    /// responses.
+    ///
+    /// Each response is a [HashMap](std::collections::HashMap) of the state variables.
+    ///
+    /// # Example usage:
+    /// ```rust,no_run
+    /// # #![feature(generators, proc_macro_hygiene, stmt_expr_attributes)]
+    /// # use async_std::prelude::*;
+    /// # use futures_async_stream::for_await;
+    /// # async fn subscribe_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let device: upnp::Device = unimplemented!();
+    /// # let service: upnp::Service = unimplemented!();
+    /// let (_sid, stream) = service.subscribe(device.url(), 300).await?;
+    ///
+    /// #[for_await]
+    /// for state_vars in stream {
+    ///     for (key, value) in state_vars? {
+    ///         println!("{} => {}", key, value);
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn subscribe(
+        &self,
+        url: &Uri,
+        timeout_secs: u32,
+    ) -> Result<(String, impl Stream<Item = Result<HashMap<String, String>>>)> {
+        let addr = get_if_addrs()
+            .unwrap()
+            .iter()
+            .map(Interface::ip)
+            .filter_map(|addr| match addr {
+                IpAddr::V4(addr) => Some(addr),
+                IpAddr::V6(_) => None,
+            })
+            .find(|x| x.is_private())
+            .expect("no local ipv4 interface open");
+        let addr = SocketAddrV4::new(addr, 0);
+
+        let listener = TcpListener::bind(addr).await?;
+        let addr = format!("http://{}", listener.local_addr().unwrap());
+
+        let sid = self
+            .make_subscribe_request(url, &addr, timeout_secs)
+            .await?;
+
+        let stream = async_try_stream_block! {
+            let mut incoming = listener.incoming();
+            while let Some(stream) = incoming.next().await {
+                let mut lines = BufReader::new(stream?).lines();
+                while let Some(line) = lines.next().await {
+                    let line = line?;
+                    if line.starts_with("<e:propertyset") {
+                        let doc = Document::parse(&line)?;
+
+                        let hashmap: HashMap<String, String> = doc
+                            .root_element()
+                            .children()
+                            .filter_map(|child| child.first_element_child())
+                            .filter_map(|node| {
+                                if let Some(text) = node.text() {
+                                    Some((node.tag_name().name().to_string(), text.to_string()))
+                                } else {
+                                    None
+                                }
+                            })
+                            .collect();
+
+                        yield hashmap;
+                    }
+                }
+            }
+        };
+
+        Ok((sid, stream))
     }
 }
 

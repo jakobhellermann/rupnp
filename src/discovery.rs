@@ -1,8 +1,7 @@
-use crate::{Device, Error};
-use futures_util::{
-    stream::{Stream, StreamExt},
-    try_stream::TryStreamExt,
-};
+use crate::Device;
+use crate::{Error, Result};
+use futures_util::stream::{Stream, StreamExt};
+use futures_util::try_stream::TryStreamExt;
 use ssdp_client::search::SearchTarget;
 use std::time::Duration;
 
@@ -10,7 +9,7 @@ use std::time::Duration;
 pub async fn discover(
     search_target: &SearchTarget,
     timeout: Duration,
-) -> Result<impl Stream<Item = Result<Device, Error>>, Error> {
+) -> Result<impl Stream<Item = Result<Device>>> {
     Ok(ssdp_client::search(search_target, timeout, 3)
         .await?
         .map(|res| match res {

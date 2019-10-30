@@ -1,19 +1,21 @@
 use std::fmt;
+use std::str::Utf8Error;
 
 /// The UPnP Error type.
 #[derive(Debug)]
 #[non_exhaustive]
 pub enum Error {
     UPnPError(UPnPError),
-    InvalidUrl(isahc::http::uri::InvalidUri),
-    InvalidUtf8(std::str::Utf8Error),
+    SSDPError(ssdp_client::Error),
     IO(std::io::Error),
-    XmlError(roxmltree::Error),
+    NetworkError(isahc::Error),
+    MissingHeader(&'static str),
+    InvalidUrl(crate::http::uri::InvalidUri),
+    InvalidUtf8(Utf8Error),
     ParseError(&'static str),
     InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
-    NetworkError(isahc::Error),
-    HttpErrorCode(isahc::http::StatusCode),
-    SSDPError(ssdp_client::Error),
+    HttpErrorCode(crate::http::StatusCode),
+    XmlError(roxmltree::Error),
     XMLMissingElement(String, String),
     XMLMissingText(String),
 }
@@ -27,19 +29,20 @@ impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Error::UPnPError(err) => write!(f, "{}", err),
-            Error::InvalidUrl(err) => write!(f, "invalid url: {}", err),
-            Error::InvalidUtf8(err) => write!(f, "invalid utf8: {}", err),
+            Error::SSDPError(err) => write!(f, "error trying to discover devices: {}", err),
             Error::IO(err) => write!(f, "error reading response: {}", err),
-            Error::XmlError(err) => write!(f, "failed to parse xml: {}", err),
-            Error::ParseError(err) => write!(f, "{}", err),
-            Error::InvalidResponse(err) => write!(f, "Invalid response {}", err),
             Error::NetworkError(err) => {
                 write!(f, "An error occurred trying to connect to device: {}", err)
             }
+            Error::MissingHeader(header) => write!(f, "missing header '{}'", header),
+            Error::InvalidUrl(err) => write!(f, "invalid url: {}", err),
+            Error::InvalidUtf8(err) => write!(f, "invalid utf8: {}", err),
+            Error::ParseError(err) => write!(f, "{}", err),
+            Error::InvalidResponse(err) => write!(f, "Invalid response {}", err),
             Error::HttpErrorCode(code) => {
                 write!(f, "The control point responded with status code {}", code)
             }
-            Error::SSDPError(err) => write!(f, "error trying to discover devices: {}", err),
+            Error::XmlError(err) => write!(f, "failed to parse xml: {}", err),
             Error::XMLMissingElement(parent, child) => write!(
                 f,
                 "`{}` does not contain an `{}` element or attribute",
@@ -77,8 +80,8 @@ impl From<std::io::Error> for Error {
         Error::IO(err)
     }
 }
-impl From<isahc::http::uri::InvalidUri> for Error {
-    fn from(err: isahc::http::uri::InvalidUri) -> Self {
+impl From<crate::http::uri::InvalidUri> for Error {
+    fn from(err: crate::http::uri::InvalidUri) -> Self {
         Error::InvalidUrl(err)
     }
 }
@@ -90,6 +93,11 @@ impl From<ssdp_client::Error> for Error {
 impl From<UPnPError> for Error {
     fn from(err: UPnPError) -> Self {
         Error::UPnPError(err)
+    }
+}
+impl From<Utf8Error> for Error {
+    fn from(err: Utf8Error) -> Self {
+        Error::InvalidUtf8(err)
     }
 }
 

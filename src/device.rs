@@ -1,6 +1,7 @@
+use crate::http::Uri;
+use crate::Service;
 use crate::{find_in_xml, HttpResponseExt};
-use crate::{Error, Service};
-use isahc::http::Uri;
+use crate::{Error, Result};
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 
@@ -20,7 +21,7 @@ impl Device {
     /// Creates a UPnP device from the given url.
     /// The url should point to the `/device_description.xml` or similar of the device.
     /// If you dont have access to the concrete location, have a look at [`discover`][fn.discover.html] instead.
-    pub async fn from_url(url: Uri) -> Result<Self, Error> {
+    pub async fn from_url(url: Uri) -> Result<Self> {
         let body = isahc::get_async(&url)
             .await?
             .err_if_not_200()?
@@ -67,7 +68,7 @@ pub struct DeviceSpec {
 }
 
 impl DeviceSpec {
-    fn from_xml<'a, 'input: 'a>(node: Node<'a, 'input>) -> Result<Self, Error> {
+    fn from_xml<'a, 'input: 'a>(node: Node<'a, 'input>) -> Result<Self> {
         #[allow(non_snake_case)]
         let (device_type, friendly_name, services, devices) =
             find_in_xml! { node => deviceType, friendlyName, serviceList, ?deviceList };
@@ -77,14 +78,14 @@ impl DeviceSpec {
                 .children()
                 .filter(Node::is_element)
                 .map(DeviceSpec::from_xml)
-                .collect::<Result<_, _>>()?,
+                .collect::<Result<_>>()?,
             None => Vec::new(),
         };
         let services = services
             .children()
             .filter(Node::is_element)
             .map(Service::from_xml)
-            .collect::<Result<_, _>>()?;
+            .collect::<Result<_>>()?;
 
         Ok(Self {
             device_type: crate::parse_node_text(device_type)?,

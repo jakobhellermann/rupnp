@@ -1,13 +1,10 @@
-use async_std::task;
-use isahc::http::Uri;
+use upnp::http::Uri;
 use upnp::{Device, DeviceSpec, Error};
 
 fn main() {
-    let url: Uri = "http://192.168.2.49:1400/xml/device_description.xml"
-        .parse()
-        .unwrap();
+    let url = Uri::from_static("http://192.168.2.49:1400/xml/device_description.xml");
 
-    if let Err(e) = task::block_on(dump_scpd(url)) {
+    if let Err(e) = async_std::task::block_on(dump_scpd(url)) {
         eprintln!("{}", e);
     }
 }
@@ -25,7 +22,7 @@ fn print(spec: &DeviceSpec, url: &Uri, indent_lvl: usize) -> Result<(), Error> {
     for service in spec.services() {
         println!("{} - {}", space, service.service_type());
 
-        let scpd = task::block_on(service.scpd(&url))?;
+        let scpd = async_std::task::block_on(service.scpd(&url))?;
 
         let space = "  ".repeat(indent_lvl + 2);
         for state_var in scpd.state_variables() {

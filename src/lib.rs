@@ -1,4 +1,4 @@
-#![feature(external_doc)]
+#![feature(external_doc, generators, proc_macro_hygiene)]
 #![warn(
     nonstandard_style,
     rust_2018_idioms,
@@ -29,14 +29,16 @@ pub use discovery::discover;
 pub use error::Error;
 pub use service::Service;
 
-/// Reexport for the ssdp lib, `SearchTarget` and `URN` appear in the public API.
+pub use http;
 pub use ssdp_client as ssdp;
 
+pub(crate) type Result<T> = std::result::Result<T, Error>;
+
 trait HttpResponseExt: Sized {
-    fn err_if_not_200(self) -> Result<Self, Error>;
+    fn err_if_not_200(self) -> Result<Self>;
 }
-impl HttpResponseExt for isahc::http::Response<isahc::Body> {
-    fn err_if_not_200(self) -> Result<Self, Error> {
+impl HttpResponseExt for crate::http::Response<isahc::Body> {
+    fn err_if_not_200(self) -> Result<Self> {
         if self.status() != 200 {
             Err(Error::HttpErrorCode(self.status()))
         } else {
@@ -80,7 +82,7 @@ macro_rules! find_in_xml {
     } }
 }
 
-pub(crate) fn parse_node_text<T, E>(node: Node<'_, '_>) -> Result<T, Error>
+pub(crate) fn parse_node_text<T, E>(node: Node<'_, '_>) -> Result<T>
 where
     T: std::str::FromStr<Err = E>,
     E: std::error::Error + Send + Sync + 'static,
@@ -95,7 +97,7 @@ pub(crate) fn find_root<'a, 'input: 'a>(
     document: &'input Document<'_>,
     element: &str,
     docname: &str,
-) -> Result<Node<'a, 'input>, Error> {
+) -> Result<Node<'a, 'input>> {
     document
         .descendants()
         .filter(Node::is_element)
