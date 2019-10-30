@@ -136,21 +136,4 @@ impl DeviceSpec {
     pub fn find_device(&self, device_type: &URN) -> Option<&DeviceSpec> {
         self.devices_iter().find(|d| &d.device_type == device_type)
     }
-
-    #[allow(dead_code)]
-    fn print(&self) {
-        fn print_inner(device: &DeviceSpec, indentation: usize) {
-            let i = "  ".repeat(indentation);
-
-            println!("{}{}", i, &device.device_type);
-            for service in device.services() {
-                println!("{}  - {}", i, service.service_type());
-            }
-            for device in device.devices() {
-                print_inner(device, indentation + 1);
-            }
-        }
-
-        print_inner(&self, 0);
-    }
 }
