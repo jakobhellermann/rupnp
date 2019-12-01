@@ -12,33 +12,34 @@
 //!
 //! # Example usage:
 //! ```rust,no_run
-//! # async fn discovery() -> Result<(), upnp::Error> {
 //! use futures::prelude::*;
 //! use std::time::Duration;
 //! use upnp::ssdp::URN;
 //!
 //! const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 //!
-//! let devices = upnp::discover(&RENDERING_CONTROL.into(), Duration::from_secs(3)).await?;
-//! pin_utils::pin_mut!(devices);
+//! #[async_std::main]
+//! async fn main() -> Result<(), upnp::Error> {
+//!     let devices = upnp::discover(&RENDERING_CONTROL.into(), Duration::from_secs(3)).await?;
+//!     pin_utils::pin_mut!(devices);
 //!
-//! while let Some(device) = devices.next().await {
-//!     let device = device?;
+//!     while let Some(device) = devices.next().await {
+//!         let device = device?;
 //!
-//!     let service = device
-//!         .find_service(&RENDERING_CONTROL)
-//!         .expect("searched for RenderingControl, got something else");
+//!         let service = device
+//!             .find_service(&RENDERING_CONTROL)
+//!             .expect("searched for RenderingControl, got something else");
 //!
-//!     let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
-//!     let response = service.action(device.url(), "GetVolume", args).await?;
+//!         let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
+//!         let response = service.action(device.url(), "GetVolume", args).await?;
 //!
-//!     let volume = response.get("CurrentVolume").unwrap();
+//!         let volume = response.get("CurrentVolume").unwrap();
 //!
-//!     println!("'{}' is at volume {}", device.friendly_name(), volume);
+//!         println!("'{}' is at volume {}", device.friendly_name(), volume);
+//!     }
+//!
+//!     Ok(())
 //! }
-//!
-//! # Ok(())
-//! # }
 //! ```
 // doc include when it gets stable
 
