@@ -9,7 +9,7 @@ use ssdp_client::URN;
 
 #[derive(Debug)]
 /// A UPnP Device.
-/// It stores its `Uri` and a [`DeviceSpec`], which contains information like the device type and
+/// It stores its [`Uri`] and a [`DeviceSpec`], which contains information like the device type and
 /// its list of inner devices and services.
 pub struct Device {
     url: Uri,
@@ -22,7 +22,7 @@ impl Device {
 
     /// Creates a UPnP device from the given url.
     /// The url should point to the `/device_description.xml` or similar of the device.
-    /// If you dont have access to the concrete location, have a look at [`discover`][fn.discover.html] instead.
+    /// If you dont know the concrete location, use [`discover`](fn.discover.html) instead.
     pub async fn from_url(url: Uri) -> Result<Self> {
         let body = isahc::get_async(&url)
             .await?
@@ -46,8 +46,13 @@ impl std::ops::Deref for Device {
     }
 }
 
-/// Information about a device, like its 'friendly_name', device type etc.
-/// Also includes its list of subdevices and services.
+/// Information about a device.
+///
+/// By default it only includes its *friendly name*, device type and a list of subdevices and
+/// services in order to keep the structs size small.
+///
+/// If you also want the `ManufacturerURL`, `Model{Description,Number,Url}`, `serial number`, `UDN` and
+/// `UPC`, enable the `full_device_spec` feature.
 #[derive(Debug)]
 pub struct DeviceSpec {
     device_type: URN,
@@ -55,15 +60,24 @@ pub struct DeviceSpec {
 
     devices: Vec<DeviceSpec>,
     services: Vec<Service>,
-    /*pub manufacturer: String,
-    pub manufacturer_url: Option<String>,
-    pub model_description: Option<String>,
-    pub model_number: Option<String>,
-    pub model_url: Option<String>,
-    pub serial_number: Option<String>,
-    pub udn: String,
-    pub upc: Option<String>,
-    //pub icon_list: Value<Vec<Icon>>,
+
+    #[cfg(feature = "full_device_spec")]
+    manufacturer: String,
+    #[cfg(feature = "full_device_spec")]
+    manufacturer_url: Option<String>,
+    #[cfg(feature = "full_device_spec")]
+    model_description: Option<String>,
+    #[cfg(feature = "full_device_spec")]
+    model_number: Option<String>,
+    #[cfg(feature = "full_device_spec")]
+    model_url: Option<String>,
+    #[cfg(feature = "full_device_spec")]
+    serial_number: Option<String>,
+    #[cfg(feature = "full_device_spec")]
+    udn: String,
+    #[cfg(feature = "full_device_spec")]
+    upc: Option<String>,
+    /*//pub icon_list: Value<Vec<Icon>>,
     //pub service_list: Value<Vec<Service>>,
     //pub device_list: Value<Vec<DeviceSpec>>,
     pub presentation_url: Option<String>,*/
@@ -74,6 +88,32 @@ impl DeviceSpec {
         #[allow(non_snake_case)]
         let (device_type, friendly_name, services, devices) =
             find_in_xml! { node => deviceType, friendlyName, serviceList, ?deviceList };
+
+        #[cfg(feature = "full_device_spec")]
+        #[allow(non_snake_case)]
+        let (
+            manufacturer,
+            manufacturer_url,
+            model_description,
+            model_number,
+            model_url,
+            serial_number,
+            udn,
+            upc,
+        ) = find_in_xml! { node => manufacturer, ?manufacturerURL, ?modelDescription, ?modelNumber, ?modelURL, ?serialNumber, UDN, ?UPC};
+
+        #[cfg(feature = "full_device_spec")]
+        let manufacturer_url = manufacturer_url.map(utils::parse_node_text).transpose()?;
+        #[cfg(feature = "full_device_spec")]
+        let model_description = model_description.map(utils::parse_node_text).transpose()?;
+        #[cfg(feature = "full_device_spec")]
+        let model_number = model_number.map(utils::parse_node_text).transpose()?;
+        #[cfg(feature = "full_device_spec")]
+        let model_url = model_url.map(utils::parse_node_text).transpose()?;
+        #[cfg(feature = "full_device_spec")]
+        let serial_number = serial_number.map(utils::parse_node_text).transpose()?;
+        #[cfg(feature = "full_device_spec")]
+        let upc = upc.map(utils::parse_node_text).transpose()?;
 
         let devices = match devices {
             Some(d) => d
@@ -92,6 +132,22 @@ impl DeviceSpec {
         Ok(Self {
             device_type: utils::parse_node_text(device_type)?,
             friendly_name: utils::parse_node_text(friendly_name)?,
+            #[cfg(feature = "full_device_spec")]
+            manufacturer: utils::parse_node_text(manufacturer)?,
+            #[cfg(feature = "full_device_spec")]
+            udn: utils::parse_node_text(udn)?,
+            #[cfg(feature = "full_device_spec")]
+            manufacturer_url,
+            #[cfg(feature = "full_device_spec")]
+            model_description,
+            #[cfg(feature = "full_device_spec")]
+            model_number,
+            #[cfg(feature = "full_device_spec")]
+            model_url,
+            #[cfg(feature = "full_device_spec")]
+            serial_number,
+            #[cfg(feature = "full_device_spec")]
+            upc,
             devices,
             services,
         })
@@ -102,6 +158,39 @@ impl DeviceSpec {
     }
     pub fn friendly_name(&self) -> &str {
         &self.friendly_name
+    }
+
+    #[cfg(feature = "full_device_spec")]
+    pub fn manufacturer(&self) -> &str {
+        &self.manufacturer
+    }
+    #[cfg(feature = "full_device_spec")]
+    pub fn manufacturer_url(&self) -> Option<&str> {
+        self.manufacturer_url.as_ref().map(String::as_str)
+    }
+    #[cfg(feature = "full_device_spec")]
+    pub fn model_description(&self) -> Option<&str> {
+        self.model_description.as_ref().map(String::as_str)
+    }
+    #[cfg(feature = "full_device_spec")]
+    pub fn model_number(&self) -> Option<&str> {
+        self.model_number.as_ref().map(String::as_str)
+    }
+    #[cfg(feature = "full_device_spec")]
+    pub fn model_url(&self) -> Option<&str> {
+        self.model_url.as_ref().map(String::as_str)
+    }
+    #[cfg(feature = "full_device_spec")]
+    pub fn serial_number(&self) -> Option<&str> {
+        self.serial_number.as_ref().map(String::as_str)
+    }
+    #[cfg(feature = "full_device_spec")]
+    pub fn udn(&self) -> &str {
+        &self.udn
+    }
+    #[cfg(feature = "full_device_spec")]
+    pub fn upc(&self) -> Option<&str> {
+        self.upc.as_ref().map(String::as_str)
     }
 
     /// Returns a list of this devices subdevices.
