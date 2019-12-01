@@ -14,8 +14,8 @@ edition = "2018"
 full_device_spec = []
 
 [dependencies]
-async-std = "1.0"
-futures-util = "0.3"
+async-std = "1"
+futures-util = { version = "0.3", default-features = false }
 get_if_addrs = "0.5"
 genawaiter = { version = "0.2", features = ["futures03"] }
 http = "0.1"
