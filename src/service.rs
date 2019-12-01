@@ -6,13 +6,13 @@ use crate::{Error, Result};
 use async_std::io::BufReader;
 use async_std::net::TcpListener;
 use async_std::prelude::*;
-use futures_async_stream::async_try_stream_block;
+use genawaiter::sync::{Co, Gen};
 use get_if_addrs::{get_if_addrs, Interface};
 
 use crate::http::Uri;
 use isahc::prelude::*;
 use roxmltree::{Document, Node};
-use ssdp_client::search::URN;
+use ssdp_client::URN;
 
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddrV4};
@@ -120,12 +120,11 @@ impl Service {
             payload = payload
         );
 
+        let soap_action = format!("\"{}#{}\"", &self.service_type, action);
+
         let doc = Request::post(self.control_url(url))
             .header("CONTENT-TYPE", "xml")
-            .header(
-                "SOAPAction",
-                format!("\"{}#{}\"", &self.service_type, action),
-            )
+            .header("SOAPAction", soap_action)
             .body(body)
             .unwrap()
             .send_async()
@@ -238,16 +237,13 @@ impl Service {
     ///
     /// # Example usage:
     /// ```rust,no_run
-    /// # #![feature(generators, proc_macro_hygiene, stmt_expr_attributes)]
     /// # use async_std::prelude::*;
-    /// # use futures_async_stream::for_await;
     /// # async fn subscribe_example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let device: upnp::Device = unimplemented!();
     /// # let service: upnp::Service = unimplemented!();
     /// let (_sid, stream) = service.subscribe(device.url(), 300).await?;
     ///
-    /// #[for_await]
-    /// for state_vars in stream {
+    /// while let Some(state_vars) = stream.next().await {
     ///     for (key, value) in state_vars? {
     ///         println!("{} => {}", key, value);
     ///     }
@@ -279,35 +275,49 @@ impl Service {
             .make_subscribe_request(url, &addr, timeout_secs)
             .await?;
 
-        let stream = async_try_stream_block! {
-            let mut incoming = listener.incoming();
-            while let Some(stream) = incoming.next().await {
-                let mut lines = BufReader::new(stream?).lines();
-                while let Some(line) = lines.next().await {
-                    let line = line?;
-                    if line.starts_with("<e:propertyset") {
-                        let doc = Document::parse(&line)?;
-
-                        let hashmap: HashMap<String, String> = doc
-                            .root_element()
-                            .children()
-                            .filter_map(|child| child.first_element_child())
-                            .filter_map(|node| {
-                                if let Some(text) = node.text() {
-                                    Some((node.tag_name().name().to_string(), text.to_string()))
-                                } else {
-                                    None
-                                }
-                            })
-                            .collect();
-
-                        yield hashmap;
-                    }
-                }
-            }
-        };
+        let stream = Gen::new(move |co: Co<Result<_>>| subscribe_stream(listener, co));
 
         Ok((sid, stream))
+    }
+}
+
+macro_rules! yield_try {
+    ( $co:expr => $expr:expr ) => {
+        match $expr {
+            Ok(val) => val,
+            Err(e) => {
+                $co.yield_(Err(e.into())).await;
+                continue;
+            }
+        }
+    };
+}
+
+async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
+    let mut incoming = listener.incoming();
+    while let Some(stream) = incoming.next().await {
+        let mut lines = BufReader::new(yield_try!(co => stream)).lines();
+        while let Some(line) = lines.next().await {
+            let line = yield_try!(co => line);
+            if line.starts_with("<e:propertyset") {
+                let doc = Document::parse(&line).expect("todo");
+
+                let hashmap: HashMap<String, String> = doc
+                    .root_element()
+                    .children()
+                    .filter_map(|child| child.first_element_child())
+                    .filter_map(|node| {
+                        if let Some(text) = node.text() {
+                            Some((node.tag_name().name().to_string(), text.to_string()))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                co.yield_(Ok(hashmap)).await;
+            }
+        }
     }
 }
 

@@ -1,11 +1,9 @@
-#![feature(path_buf_capacity)]
-
 use std::fs;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 
-use futures_util::try_stream::TryStreamExt;
+use futures_util::stream::TryStreamExt;
 
 use upnp::http::Uri;
 use upnp::ssdp::{SearchTarget, URN};

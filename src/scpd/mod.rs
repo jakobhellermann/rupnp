@@ -4,7 +4,7 @@ use crate::Error;
 use crate::HttpResponseExt;
 use roxmltree::Document;
 use roxmltree::Node;
-use ssdp_client::search::URN;
+use ssdp_client::URN;
 use std::rc::Rc;
 
 mod action;

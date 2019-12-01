@@ -3,7 +3,6 @@ use std::str::Utf8Error;
 
 /// The UPnP Error type.
 #[derive(Debug)]
-#[non_exhaustive]
 pub enum Error {
     UPnPError(UPnPError),
     SSDPError(ssdp_client::Error),
@@ -38,14 +37,14 @@ impl fmt::Display for Error {
             Error::InvalidUrl(err) => write!(f, "invalid url: {}", err),
             Error::InvalidUtf8(err) => write!(f, "invalid utf8: {}", err),
             Error::ParseError(err) => write!(f, "{}", err),
-            Error::InvalidResponse(err) => write!(f, "Invalid response {}", err),
+            Error::InvalidResponse(err) => write!(f, "Invalid response: {}", err),
             Error::HttpErrorCode(code) => {
                 write!(f, "The control point responded with status code {}", code)
             }
             Error::XmlError(err) => write!(f, "failed to parse xml: {}", err),
             Error::XMLMissingElement(parent, child) => write!(
                 f,
-                "`{}` does not contain an `{}` element or attribute",
+                "`{}` does not contain a `{}` element or attribute",
                 parent, child
             ),
             Error::XMLMissingText(element) => write!(f, "element `{}`'s text is empty", element),

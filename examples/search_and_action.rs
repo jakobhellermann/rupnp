@@ -1,6 +1,4 @@
-#![feature(generators, proc_macro_hygiene, stmt_expr_attributes)]
-
-use futures_async_stream::for_await;
+use futures::prelude::*;
 use std::time::Duration;
 use upnp::ssdp::URN;
 
@@ -14,9 +12,9 @@ fn main() {
 
 async fn discovery() -> Result<(), upnp::Error> {
     let devices = upnp::discover(&RENDERING_CONTROL.into(), Duration::from_secs(3)).await?;
+    pin_utils::pin_mut!(devices);
 
-    #[for_await]
-    for device in devices {
+    while let Some(device) = devices.next().await {
         let device = device?;
 
         let service = device

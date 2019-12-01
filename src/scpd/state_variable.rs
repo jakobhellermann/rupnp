@@ -75,7 +75,7 @@ impl StateVariable {
     }
 
     pub fn default(&self) -> Option<&str> {
-        self.default.as_deref()
+        self.default.as_ref().map(String::as_str)
     }
 
     pub fn optional(&self) -> bool {
