@@ -1,26 +1,23 @@
-use upnp::{http::Uri, ssdp::URN, Device, Error};
+use upnp::{ssdp::URN, Device, Uri};
 
-fn main() {
+#[async_std::main]
+async fn main() -> Result<(), upnp::Error> {
     let url = Uri::from_static("http://192.168.2.49:1400/xml/device_description.xml");
+    let service_urn = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
-    match async_std::task::block_on(get_volume(url)) {
-        Err(err) => eprintln!("{}", err),
-        Ok(volume) => println!("{}", volume),
-    }
-}
-
-const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
-
-async fn get_volume(url: Uri) -> Result<u16, Error> {
     let device = Device::from_url(url).await?;
-    let service = device.find_service(&RENDERING_CONTROL).unwrap();
+    let service = device.find_service(&service_urn).unwrap();
 
     let args = "<InstanceID>0</InstanceID><Channel>Master</Channel>";
-    let response = service.action(device.url(), "GetVolume", args).await?;
-
-    response
+    let response: u8 = service
+        .action(device.url(), "GetVolume", args)
+        .await?
         .get("CurrentVolume")
         .unwrap()
         .parse()
-        .map_err(Error::invalid_response)
+        .map_err(upnp::Error::invalid_response)?;
+
+    println!("{}", response);
+
+    Ok(())
 }

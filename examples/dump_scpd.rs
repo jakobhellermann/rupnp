@@ -1,29 +1,17 @@
+use futures_util::stream::TryStreamExt;
 use std::{
     fs,
     io::Write,
     path::{Path, PathBuf},
     time::Duration,
 };
-
-use futures_util::stream::TryStreamExt;
-
 use upnp::{
-    http::Uri,
     ssdp::{SearchTarget, URN},
-    DeviceSpec, Error, Service,
+    DeviceSpec, Error, Service, Uri,
 };
 
-fn main() {
-    if let Err(e) = async_std::task::block_on(dump_scpd()) {
-        eprintln!("{}", e);
-    }
-}
-
-fn urn_to_str(urn: &URN) -> String {
-    urn.typ().to_string().to_lowercase()
-}
-
-async fn dump_scpd() -> Result<(), Error> {
+#[async_std::main]
+async fn main() -> Result<(), Error> {
     let mut devices: Vec<_> = upnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3))
         .await?
         .try_collect()
@@ -82,4 +70,8 @@ async fn write_service(mut w: impl Write, service: &Service, url: &Uri) -> Resul
     writeln!(w, "}}")?;
 
     Ok(())
+}
+
+fn urn_to_str(urn: &URN) -> String {
+    urn.typ().to_string().to_lowercase()
 }

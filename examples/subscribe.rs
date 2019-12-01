@@ -1,21 +1,14 @@
 use futures::prelude::*;
-
-use upnp::{http::Uri, ssdp::URN, Device};
-
 use std::collections::HashMap;
+use upnp::{ssdp::URN, Device, Uri};
 
-fn main() {
-    if let Err(e) = async_std::task::block_on(subscribe()) {
-        eprintln!("{}", e);
-    }
-}
-
-async fn subscribe() -> Result<(), upnp::Error> {
+#[async_std::main]
+async fn main() -> Result<(), upnp::Error> {
     let url = Uri::from_static("http://192.168.2.49:1400/xml/device_description.xml");
-    let urn = URN::service("schemas-upnp-org", "ZoneGroupTopology", 1);
+    let service_urn = URN::service("schemas-upnp-org", "ZoneGroupTopology", 1);
 
     let device = Device::from_url(url).await?;
-    let service = device.find_service(&urn).unwrap();
+    let service = device.find_service(&service_urn).unwrap();
 
     let (sid, mut stream) = service.subscribe(device.url(), 10).await?;
 

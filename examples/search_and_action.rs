@@ -4,13 +4,8 @@ use upnp::ssdp::URN;
 
 const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
-fn main() {
-    if let Err(e) = async_std::task::block_on(discovery()) {
-        eprintln!("{}", e);
-    }
-}
-
-async fn discovery() -> Result<(), upnp::Error> {
+#[async_std::main]
+async fn main() -> Result<(), upnp::Error> {
     let devices = upnp::discover(&RENDERING_CONTROL.into(), Duration::from_secs(3)).await?;
     pin_utils::pin_mut!(devices);
 
