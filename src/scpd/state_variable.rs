@@ -1,8 +1,6 @@
-use crate::find_in_xml;
-use crate::Error;
+use crate::{find_in_xml, utils, Error, Result};
 use roxmltree::Node;
-use std::fmt;
-use std::ops::RangeInclusive;
+use std::{fmt, ops::RangeInclusive};
 
 /// A `StateVariable` is the type of every [Argument](struct.Argument.html) in UPnP Actions.
 /// It is either a single value, an enumeration of strings or an integer range: see
@@ -33,7 +31,7 @@ impl fmt::Display for StateVariable {
 }
 
 impl StateVariable {
-    pub(crate) fn from_xml(node: Node<'_, '_>) -> Result<Self, Error> {
+    pub(crate) fn from_xml(node: Node<'_, '_>) -> Result<Self> {
         #[allow(non_snake_case)]
         let (name, datatype, default, variants, range, optional) = find_in_xml! { node => name, dataType, ?defaultValue, ?allowedValueList, ?allowedValueRange, ?optional };
 
@@ -41,16 +39,16 @@ impl StateVariable {
             .map(|a| {
                 a.children()
                     .filter(Node::is_element)
-                    .map(crate::parse_node_text)
+                    .map(utils::parse_node_text)
                     .collect()
             })
             .transpose()?;
 
-        let default = default.map(crate::parse_node_text).transpose()?;
+        let default = default.map(utils::parse_node_text).transpose()?;
         let range = range.map(range_from_xml).transpose()?;
 
-        let name = crate::parse_node_text(name)?;
-        let datatype = crate::parse_node_text(datatype)?;
+        let name = utils::parse_node_text(name)?;
+        let datatype = utils::parse_node_text(datatype)?;
         let optional = optional.is_some();
 
         let kind = match (variants, range) {
@@ -163,13 +161,13 @@ impl std::str::FromStr for DataType {
     }
 }
 
-fn range_from_xml(node: Node<'_, '_>) -> Result<(RangeInclusive<i64>, i64), Error> {
+fn range_from_xml(node: Node<'_, '_>) -> Result<(RangeInclusive<i64>, i64)> {
     #[allow(non_snake_case)]
     let (minimum, maximum, step) = find_in_xml! { node => minimum, maximum, ?step };
 
-    let step = step.map(crate::parse_node_text).transpose()?.unwrap_or(1);
-    let minimum = crate::parse_node_text(minimum)?;
-    let maximum = crate::parse_node_text(maximum)?;
+    let step = step.map(utils::parse_node_text).transpose()?.unwrap_or(1);
+    let minimum = utils::parse_node_text(minimum)?;
+    let maximum = utils::parse_node_text(maximum)?;
 
     Ok((minimum..=maximum, step))
 }

@@ -1,6 +1,4 @@
-use upnp::http::Uri;
-use upnp::ssdp::URN;
-use upnp::{Device, Error};
+use upnp::{http::Uri, ssdp::URN, Device, Error};
 
 fn main() {
     let url = Uri::from_static("http://192.168.2.49:1400/xml/device_description.xml");

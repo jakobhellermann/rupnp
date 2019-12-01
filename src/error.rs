@@ -1,5 +1,4 @@
-use std::fmt;
-use std::str::Utf8Error;
+use std::{fmt, str::Utf8Error};
 
 /// The UPnP Error type.
 #[derive(Debug)]
@@ -9,11 +8,11 @@ pub enum Error {
     IO(std::io::Error),
     NetworkError(isahc::Error),
     MissingHeader(&'static str),
-    InvalidUrl(crate::http::uri::InvalidUri),
+    InvalidUrl(http::uri::InvalidUri),
     InvalidUtf8(Utf8Error),
     ParseError(&'static str),
     InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
-    HttpErrorCode(crate::http::StatusCode),
+    HttpErrorCode(http::StatusCode),
     XmlError(roxmltree::Error),
     XMLMissingElement(String, String),
     XMLMissingText(String),
@@ -57,7 +56,6 @@ impl std::error::Error for Error {
             Error::UPnPError(err) => Some(err),
             Error::InvalidUrl(err) => Some(err),
             Error::XmlError(err) => Some(err),
-            //Error::InvalidResponse(err) => Some(err),
             Error::NetworkError(err) => Some(err),
             Error::SSDPError(err) => Some(err),
             _ => None,
@@ -79,8 +77,8 @@ impl From<std::io::Error> for Error {
         Error::IO(err)
     }
 }
-impl From<crate::http::uri::InvalidUri> for Error {
-    fn from(err: crate::http::uri::InvalidUri) -> Self {
+impl From<http::uri::InvalidUri> for Error {
+    fn from(err: http::uri::InvalidUri) -> Self {
         Error::InvalidUrl(err)
     }
 }

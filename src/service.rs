@@ -1,21 +1,20 @@
-use crate::error::UPnPError;
-use crate::scpd::SCPD;
-use crate::{find_in_xml, HttpResponseExt};
-use crate::{Error, Result};
+use crate::{
+    error::{Error, UPnPError},
+    find_in_xml,
+    scpd::SCPD,
+    utils::{self, HttpResponseExt},
+    Result,
+};
 
-use async_std::io::BufReader;
-use async_std::net::TcpListener;
-use async_std::prelude::*;
+use async_std::{io::BufReader, net::TcpListener, prelude::*};
 use genawaiter::sync::{Co, Gen};
-use get_if_addrs::{get_if_addrs, Interface};
 
-use crate::http::Uri;
+use http::Uri;
 use isahc::prelude::*;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 
 use std::collections::HashMap;
-use std::net::{IpAddr, SocketAddrV4};
 
 /// A UPnP Service is the description of endpoints on a device for performing actions and reading
 /// the service definition.
@@ -36,11 +35,11 @@ impl Service {
             find_in_xml! { node => serviceType, serviceId, SCPDURL, controlURL, eventSubURL };
 
         Ok(Self {
-            service_type: crate::parse_node_text(service_type)?,
-            service_id: crate::parse_node_text(service_id)?,
-            scpd_endpoint: crate::parse_node_text(scpd_endpoint)?,
-            control_endpoint: crate::parse_node_text(control_endpoint)?,
-            event_sub_endpoint: crate::parse_node_text(event_sub_endpoint)?,
+            service_type: utils::parse_node_text(service_type)?,
+            service_id: utils::parse_node_text(service_id)?,
+            scpd_endpoint: utils::parse_node_text(scpd_endpoint)?,
+            control_endpoint: utils::parse_node_text(control_endpoint)?,
+            event_sub_endpoint: utils::parse_node_text(event_sub_endpoint)?,
         })
     }
 
@@ -77,7 +76,7 @@ impl Service {
     ///
     /// ```rust,no_run
     /// # use ssdp_client::URN;
-    /// # async fn rendering_control_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn rendering_control_example() -> Result<(), upnp::Error> {
     /// # let some_url = unimplemented!();
     /// use upnp::ssdp::URN;
     /// use upnp::Device;
@@ -134,7 +133,7 @@ impl Service {
             .await?;
 
         let document = Document::parse(&doc)?;
-        let body = crate::find_root(&document, "Body", "UPnP Response")?;
+        let body = utils::find_root(&document, "Body", "UPnP Response")?;
 
         let first_child = body.first_element_child().ok_or(Error::ParseError(
             "the upnp responses `Body` element has no children",
@@ -238,7 +237,7 @@ impl Service {
     /// # Example usage:
     /// ```rust,no_run
     /// # use async_std::prelude::*;
-    /// # async fn subscribe_example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn subscribe_example() -> Result<(), upnp::Error> {
     /// # let device: upnp::Device = unimplemented!();
     /// # let service: upnp::Service = unimplemented!();
     /// let (_sid, stream) = service.subscribe(device.url(), 300).await?;
@@ -256,19 +255,9 @@ impl Service {
         url: &Uri,
         timeout_secs: u32,
     ) -> Result<(String, impl Stream<Item = Result<HashMap<String, String>>>)> {
-        let addr = get_if_addrs()
-            .unwrap()
-            .iter()
-            .map(Interface::ip)
-            .filter_map(|addr| match addr {
-                IpAddr::V4(addr) => Some(addr),
-                IpAddr::V6(_) => None,
-            })
-            .find(|x| x.is_private())
-            .expect("no local ipv4 interface open");
-        let addr = SocketAddrV4::new(addr, 0);
-
+        let addr = utils::get_local_addr();
         let listener = TcpListener::bind(addr).await?;
+
         let addr = format!("http://{}", listener.local_addr().unwrap());
 
         let sid = self

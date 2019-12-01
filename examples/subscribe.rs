@@ -1,8 +1,6 @@
 use futures::prelude::*;
 
-use upnp::http::Uri;
-use upnp::ssdp::URN;
-use upnp::Device;
+use upnp::{http::Uri, ssdp::URN, Device};
 
 use std::collections::HashMap;
 

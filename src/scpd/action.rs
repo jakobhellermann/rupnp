@@ -1,8 +1,10 @@
-use crate::scpd::{StateVariable, StateVariableKind};
-use crate::{find_in_xml, Error};
+use crate::{
+    find_in_xml,
+    scpd::{StateVariable, StateVariableKind},
+    utils, Error, Result,
+};
 use roxmltree::Node;
-use std::fmt;
-use std::rc::Rc;
+use std::{fmt, rc::Rc};
 
 /// An SCPD action.
 /// The action consists of its name used in the services
@@ -42,7 +44,7 @@ impl Action {
     pub(crate) fn from_xml(
         node: Node<'_, '_>,
         state_variables: &[Rc<StateVariable>],
-    ) -> Result<Self, Error> {
+    ) -> Result<Self> {
         #[allow(non_snake_case)]
         let (name, arguments) = find_in_xml! { node => name, ?argumentList };
 
@@ -51,13 +53,13 @@ impl Action {
                 args.children()
                     .filter(Node::is_element)
                     .map(|node| Argument::from_xml(node, state_variables))
-                    .collect::<Result<_, _>>()
+                    .collect::<Result<_>>()
             })
             .transpose()?
             .unwrap_or_default();
 
         Ok(Self {
-            name: crate::parse_node_text(name)?,
+            name: utils::parse_node_text(name)?,
             arguments,
         })
     }
@@ -113,7 +115,7 @@ impl fmt::Display for Argument {
 }
 
 impl Argument {
-    fn from_xml(node: Node<'_, '_>, state_variables: &[Rc<StateVariable>]) -> Result<Self, Error> {
+    fn from_xml(node: Node<'_, '_>, state_variables: &[Rc<StateVariable>]) -> Result<Self> {
         #[allow(non_snake_case)]
         let (name, direction, related_statevar) =
             find_in_xml! { node => name, direction, relatedStateVariable };
@@ -136,7 +138,7 @@ impl Argument {
         }?;
 
         Ok(Self {
-            name: crate::parse_node_text(name)?,
+            name: utils::parse_node_text(name)?,
             is_input,
             state_var,
         })

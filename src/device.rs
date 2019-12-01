@@ -1,7 +1,9 @@
-use crate::http::Uri;
-use crate::Service;
-use crate::{find_in_xml, HttpResponseExt};
-use crate::{Error, Result};
+use crate::{
+    find_in_xml,
+    utils::{self, HttpResponseExt},
+    Result, Service,
+};
+use http::Uri;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 
@@ -30,7 +32,7 @@ impl Device {
             .await?;
 
         let document = Document::parse(&body)?;
-        let device = crate::find_root(&document, "device", "Device Description")?;
+        let device = utils::find_root(&document, "device", "Device Description")?;
         let device_spec = DeviceSpec::from_xml(device)?;
 
         Ok(Self { url, device_spec })
@@ -88,8 +90,8 @@ impl DeviceSpec {
             .collect::<Result<_>>()?;
 
         Ok(Self {
-            device_type: crate::parse_node_text(device_type)?,
-            friendly_name: crate::parse_node_text(friendly_name)?,
+            device_type: utils::parse_node_text(device_type)?,
+            friendly_name: utils::parse_node_text(friendly_name)?,
             devices,
             services,
         })

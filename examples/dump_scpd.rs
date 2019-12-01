@@ -1,13 +1,17 @@
-use std::fs;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::time::Duration;
+use std::{
+    fs,
+    io::Write,
+    path::{Path, PathBuf},
+    time::Duration,
+};
 
 use futures_util::stream::TryStreamExt;
 
-use upnp::http::Uri;
-use upnp::ssdp::{SearchTarget, URN};
-use upnp::{DeviceSpec, Error, Service};
+use upnp::{
+    http::Uri,
+    ssdp::{SearchTarget, URN},
+    DeviceSpec, Error, Service,
+};
 
 fn main() {
     if let Err(e) = async_std::task::block_on(dump_scpd()) {

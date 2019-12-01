@@ -1,9 +1,11 @@
-use crate::find_in_xml;
-use crate::http::Uri;
-use crate::Error;
-use crate::HttpResponseExt;
-use roxmltree::Document;
-use roxmltree::Node;
+use crate::{
+    find_in_xml,
+    utils::{self, HttpResponseExt},
+    Error,
+};
+
+use http::Uri;
+use roxmltree::{Document, Node};
 use ssdp_client::URN;
 use std::rc::Rc;
 
@@ -43,7 +45,7 @@ impl SCPD {
             .await?;
 
         let document = Document::parse(&body)?;
-        let scpd = crate::find_root(&document, "scpd", "Service Control Point Definition")?;
+        let scpd = utils::find_root(&document, "scpd", "Service Control Point Definition")?;
 
         #[allow(non_snake_case)]
         let (state_variables, actions) = find_in_xml! { scpd => serviceStateTable, actionList };

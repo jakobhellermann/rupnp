@@ -1,5 +1,4 @@
-use crate::Device;
-use crate::{Error, Result};
+use crate::{Device, Error, Result};
 use futures_util::stream::{Stream, StreamExt, TryStreamExt};
 use ssdp_client::SearchTarget;
 use std::time::Duration;
