@@ -11,6 +11,9 @@
 //! and media servers.
 //!
 //! # Example usage:
+//! The following code searches for devices that have a `RenderingControl` service
+//! and print their names along with their current volume.
+//!
 //! ```rust,no_run
 //! use futures::prelude::*;
 //! use std::time::Duration;
