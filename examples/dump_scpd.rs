@@ -1,4 +1,5 @@
-use futures_util::stream::TryStreamExt;
+use async_std::task::spawn;
+use futures::prelude::*;
 use std::{
     fs,
     io::Write,
@@ -12,7 +13,7 @@ use upnp::{
 
 #[async_std::main]
 async fn main() -> Result<(), Error> {
-    let mut devices: Vec<_> = upnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3))
+    let mut devices: Vec<_> = upnp::discover(&SearchTarget::RootDevice, Duration::from_secs(1))
         .await?
         .try_collect()
         .await?;
@@ -45,7 +46,13 @@ fn print(device: &DeviceSpec, url: &Uri, indentation: usize, path: &Path) -> Res
         let svc = urn_to_str(service.service_type());
         let svc_file = fs::File::create(path.join(&svc))?;
 
-        async_std::task::block_on(write_service(svc_file, service, url))?;
+        spawn(
+            write_service(svc_file, service.clone(), url.clone()).map(|x| match x {
+                Err(e) => eprintln!("failed to fetch and write scpd: {}", e),
+                _ => {}
+            }),
+        );
+
         println!("{}  - {}", i, svc);
     }
 
@@ -56,7 +63,7 @@ fn print(device: &DeviceSpec, url: &Uri, indentation: usize, path: &Path) -> Res
     Ok(())
 }
 
-async fn write_service(mut w: impl Write, service: &Service, url: &Uri) -> Result<(), Error> {
+async fn write_service(mut w: impl Write, service: Service, url: Uri) -> Result<(), Error> {
     let scpd = service.scpd(&url).await?;
 
     writeln!(w, "StateVars {{")?;
