@@ -66,6 +66,8 @@ pub struct DeviceSpec {
     #[cfg(feature = "full_device_spec")]
     manufacturer_url: Option<String>,
     #[cfg(feature = "full_device_spec")]
+    model_name: String,
+    #[cfg(feature = "full_device_spec")]
     model_description: Option<String>,
     #[cfg(feature = "full_device_spec")]
     model_number: Option<String>,
@@ -77,10 +79,8 @@ pub struct DeviceSpec {
     udn: String,
     #[cfg(feature = "full_device_spec")]
     upc: Option<String>,
-    /*//pub icon_list: Value<Vec<Icon>>,
-    //pub service_list: Value<Vec<Service>>,
-    //pub device_list: Value<Vec<DeviceSpec>>,
-    pub presentation_url: Option<String>,*/
+    #[cfg(feature = "full_device_spec")]
+    presentation_url: Option<String>,
 }
 
 impl DeviceSpec {
@@ -94,13 +94,15 @@ impl DeviceSpec {
         let (
             manufacturer,
             manufacturer_url,
+            model_name,
             model_description,
             model_number,
             model_url,
             serial_number,
             udn,
             upc,
-        ) = find_in_xml! { node => manufacturer, ?manufacturerURL, ?modelDescription, ?modelNumber, ?modelURL, ?serialNumber, UDN, ?UPC};
+            presentation_url,
+        ) = find_in_xml! { node => manufacturer, ?manufacturerURL, modelName, ?modelDescription, ?modelNumber, ?modelURL, ?serialNumber, UDN, ?UPC, ?PresentationURL};
 
         #[cfg(feature = "full_device_spec")]
         let manufacturer_url = manufacturer_url.map(utils::parse_node_text).transpose()?;
@@ -114,6 +116,8 @@ impl DeviceSpec {
         let serial_number = serial_number.map(utils::parse_node_text).transpose()?;
         #[cfg(feature = "full_device_spec")]
         let upc = upc.map(utils::parse_node_text).transpose()?;
+        #[cfg(feature = "full_device_spec")]
+        let presentation_url = presentation_url.map(utils::parse_node_text).transpose()?;
 
         let devices = match devices {
             Some(d) => d
@@ -139,6 +143,8 @@ impl DeviceSpec {
             #[cfg(feature = "full_device_spec")]
             manufacturer_url,
             #[cfg(feature = "full_device_spec")]
+            model_name: utils::parse_node_text(model_name)?,
+            #[cfg(feature = "full_device_spec")]
             model_description,
             #[cfg(feature = "full_device_spec")]
             model_number,
@@ -148,6 +154,8 @@ impl DeviceSpec {
             serial_number,
             #[cfg(feature = "full_device_spec")]
             upc,
+            #[cfg(feature = "full_device_spec")]
+            presentation_url,
             devices,
             services,
         })
