@@ -27,16 +27,16 @@ impl SCPD {
     pub fn urn(&self) -> &URN {
         &self.urn
     }
-    pub fn state_variables(&self) -> &Vec<Rc<StateVariable>> {
+    pub fn state_variables(&self) -> &[Rc<StateVariable>] {
         &self.state_variables
     }
-    pub fn actions(&self) -> &Vec<Action> {
+    pub fn actions(&self) -> &[Action] {
         &self.actions
     }
 
     /// Fetches the SCPD description.
     /// The `urn` has to be provided because it isn't included in the description.
-    pub async fn from_url(url: &Uri, urn: URN) -> Result<Self, Error> {
+    pub(crate) async fn from_url(url: &Uri, urn: URN) -> Result<Self, Error> {
         let body = isahc::get_async(url)
             .await?
             .err_if_not_200()?

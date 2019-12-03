@@ -18,7 +18,7 @@ use std::collections::HashMap;
 
 /// A UPnP Service is the description of endpoints on a device for performing actions and reading
 /// the service definition.
-/// For a list of actions and state variables the service provides, take a look at [scpd](struct.Service.html#method.scpd).
+/// For a list of actions and state variables the service provides, take a look at [`scpd`](struct.Service.html#method.scpd).
 #[derive(Debug, Clone)]
 pub struct Service {
     service_type: URN,
@@ -172,7 +172,6 @@ impl Service {
             .header("CALLBACK", format!("<{}>", callback))
             .header("NT", "upnp:event")
             .header("TIMEOUT", format!("Second-{}", timeout_secs))
-            //.header("STATEVAR", "ZoneGroupName,ZoneGroupID") // does not work...
             .body(())
             .unwrap()
             .send_async()
@@ -188,43 +187,6 @@ impl Service {
             .to_string();
 
         Ok(sid)
-    }
-
-    /// Renew a subscription made with the [subscribe](struct.Service.html#method.subscribe) method.
-    ///
-    /// When the sid is invalid, the control point will respond with a `412 Preconditition failed`.
-    pub async fn renew_subscription(&self, url: &Uri, sid: &str, timeout_secs: u32) -> Result<()> {
-        Request::builder()
-            .uri(self.event_sub_url(url))
-            .method("SUBSCRIBE")
-            .header("SID", sid)
-            .header("TIMEOUT", format!("Second-{}", timeout_secs))
-            .body(())
-            .unwrap()
-            .send_async()
-            .await?
-            .err_if_not_200()?;
-
-        Ok(())
-    }
-
-    /// Unsubscribe from further event notifications.
-    ///
-    /// The SID is usually obtained by the [subscribe](struct.Service.html#method.subscribe) method.
-    ///
-    /// When the sid is invalid, the control point will respond with a `412 Preconditition failed`.
-    pub async fn unsubscribe(&self, url: &Uri, sid: &str) -> Result<()> {
-        Request::builder()
-            .uri(self.event_sub_url(url))
-            .method("UNSUBSCRIBE")
-            .header("SID", sid)
-            .body(())
-            .unwrap()
-            .send_async()
-            .await?
-            .err_if_not_200()?;
-
-        Ok(())
     }
 
     /// Subscribe for state variable changes.
@@ -267,6 +229,43 @@ impl Service {
         let stream = Gen::new(move |co: Co<Result<_>>| subscribe_stream(listener, co));
 
         Ok((sid, stream))
+    }
+
+    /// Renew a subscription made with the [subscribe](struct.Service.html#method.subscribe) method.
+    ///
+    /// When the sid is invalid, the control point will respond with a `412 Preconditition failed`.
+    pub async fn renew_subscription(&self, url: &Uri, sid: &str, timeout_secs: u32) -> Result<()> {
+        Request::builder()
+            .uri(self.event_sub_url(url))
+            .method("SUBSCRIBE")
+            .header("SID", sid)
+            .header("TIMEOUT", format!("Second-{}", timeout_secs))
+            .body(())
+            .unwrap()
+            .send_async()
+            .await?
+            .err_if_not_200()?;
+
+        Ok(())
+    }
+
+    /// Unsubscribe from further event notifications.
+    ///
+    /// The SID is usually obtained by the [subscribe](struct.Service.html#method.subscribe) method.
+    ///
+    /// When the sid is invalid, the control point will respond with a `412 Preconditition failed`.
+    pub async fn unsubscribe(&self, url: &Uri, sid: &str) -> Result<()> {
+        Request::builder()
+            .uri(self.event_sub_url(url))
+            .method("UNSUBSCRIBE")
+            .header("SID", sid)
+            .body(())
+            .unwrap()
+            .send_async()
+            .await?
+            .err_if_not_200()?;
+
+        Ok(())
     }
 }
 

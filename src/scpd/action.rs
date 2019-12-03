@@ -68,7 +68,7 @@ impl Action {
         &self.name
     }
 
-    pub fn arguments(&self) -> &Vec<Argument> {
+    pub fn arguments(&self) -> &[Argument] {
         &self.arguments
     }
 

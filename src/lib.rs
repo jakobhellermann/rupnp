@@ -10,9 +10,12 @@
 //! UPnP stand for `Universal Plug and Play` and is widely used for routers, WiFi-enabled speakers
 //! and media servers.
 //!
+//! Specification:
+//! [http://upnp.org/specs/arch/UPnP-arch-DeviceArchitecture-v2.0.pdf](http://upnp.org/specs/arch/UPnP-arch-DeviceArchitecture-v2.0.pdf)
+//!
 //! # Example usage:
 //! The following code searches for devices that have a `RenderingControl` service
-//! and print their names along with their current volume.
+//! and prints their names along with their current volume.
 //!
 //! ```rust,no_run
 //! use futures::prelude::*;
@@ -44,7 +47,7 @@
 //!     Ok(())
 //! }
 //! ```
-// doc include when it gets stable
+// TODO: doc include when it gets stable
 
 mod device;
 mod discovery;
