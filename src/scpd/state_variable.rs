@@ -10,6 +10,8 @@ pub struct StateVariable {
     name: String,
     default: Option<String>,
     kind: StateVariableKind,
+    send_events: bool,
+    multicast: bool,
     optional: bool,
 }
 
@@ -51,6 +53,13 @@ impl StateVariable {
         let datatype = utils::parse_node_text(datatype)?;
         let optional = optional.is_some();
 
+        let send_events = utils::find_node_attribute(node, "sendEvents")
+            .map(|val| val == "yes")
+            .unwrap_or(true);
+        let multicast = utils::find_node_attribute(node, "multicast")
+            .map(|val| val == "yes")
+            .unwrap_or(false);
+
         let kind = match (variants, range) {
             (None, None) => Ok(StateVariableKind::Simple(datatype)),
             (Some(variants), None) => Ok(StateVariableKind::Enum(variants)),
@@ -65,6 +74,8 @@ impl StateVariable {
             kind,
             default,
             optional,
+            send_events,
+            multicast,
         })
     }
 
@@ -78,6 +89,14 @@ impl StateVariable {
 
     pub fn optional(&self) -> bool {
         self.optional
+    }
+
+    pub fn sends_events(&self) -> bool {
+        self.send_events
+    }
+
+    pub fn is_multicast(&self) -> bool {
+        self.multicast
     }
 
     pub fn kind(&self) -> &StateVariableKind {

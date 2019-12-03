@@ -76,7 +76,11 @@ async fn write_service(mut w: impl Write, service: Service, url: Uri) -> Result<
 
     writeln!(w, "StateVars {{")?;
     for state_var in scpd.state_variables() {
-        writeln!(w, "  {}", state_var)?;
+        if state_var.sends_events() {
+            writeln!(w, "  {} (sends events)", state_var)?;
+        } else {
+            writeln!(w, "  {}", state_var)?;
+        }
     }
     writeln!(w, "}}\n\nActions {{")?;
     for action in scpd.actions() {

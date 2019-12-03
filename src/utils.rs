@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 use get_if_addrs::{get_if_addrs, Interface};
-use roxmltree::{Document, Node};
+use roxmltree::{Attribute, Document, Node};
 use std::net::{IpAddr, SocketAddrV4};
 
 pub trait HttpResponseExt: Sized {
@@ -70,6 +70,13 @@ pub fn find_root<'a, 'input: 'a>(
         .filter(Node::is_element)
         .find(|n| n.tag_name().name().eq_ignore_ascii_case(element))
         .ok_or_else(|| Error::XMLMissingElement(docname.to_string(), element.to_string()))
+}
+
+pub fn find_node_attribute<'n, 'd: 'n>(node: Node<'d, 'n>, attr: &str) -> Option<&'n str> {
+    node.attributes()
+        .iter()
+        .find(|a| a.name().eq_ignore_ascii_case(attr))
+        .map(Attribute::value)
 }
 
 pub fn get_local_addr() -> SocketAddrV4 {
