@@ -1,4 +1,4 @@
-use upnp::{ssdp::URN, Device, Uri};
+use upnp::{http::Uri, ssdp::URN, Device};
 
 #[async_std::main]
 async fn main() -> Result<(), upnp::Error> {

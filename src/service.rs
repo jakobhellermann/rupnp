@@ -9,7 +9,7 @@ use crate::{
 use async_std::{io::BufReader, net::TcpListener, prelude::*};
 use genawaiter::sync::{Co, Gen};
 
-use http::Uri;
+use http::{uri::PathAndQuery, Uri};
 use isahc::prelude::*;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
@@ -23,9 +23,9 @@ use std::collections::HashMap;
 pub struct Service {
     service_type: URN,
     service_id: String,
-    scpd_endpoint: String,
-    control_endpoint: String,
-    event_sub_endpoint: String,
+    scpd_endpoint: PathAndQuery,
+    control_endpoint: PathAndQuery,
+    event_sub_endpoint: PathAndQuery,
 }
 
 impl Service {
@@ -54,13 +54,13 @@ impl Service {
     }
 
     pub(crate) fn control_url(&self, url: &Uri) -> Uri {
-        url_with_path(url, &self.control_endpoint)
+        replace_url_path(url, &self.control_endpoint)
     }
     pub(crate) fn scpd_url(&self, url: &Uri) -> Uri {
-        url_with_path(url, &self.scpd_endpoint)
+        replace_url_path(url, &self.scpd_endpoint)
     }
     pub(crate) fn event_sub_url(&self, url: &Uri) -> Uri {
-        url_with_path(url, &self.event_sub_endpoint)
+        replace_url_path(url, &self.event_sub_endpoint)
     }
 
     /// Fetches the [`SCPD`](scpd/struct.SCPD.html) of this service.
@@ -310,13 +310,8 @@ async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, S
     }
 }
 
-fn url_with_path(url: &Uri, path: &str) -> Uri {
-    let mut builder = Uri::builder();
-    if let Some(authority) = url.authority_part() {
-        builder.authority(authority.clone());
-    }
-    if let Some(scheme) = url.scheme_part() {
-        builder.scheme(scheme.clone());
-    }
-    builder.path_and_query(path).build().expect("infallible")
+fn replace_url_path(url: &Uri, path: &PathAndQuery) -> Uri {
+    let mut parts = url.clone().into_parts();
+    parts.path_and_query = Some(path.clone());
+    Uri::from_parts(parts).expect("infallible")
 }

@@ -7,8 +7,9 @@ use std::{
     time::Duration,
 };
 use upnp::{
+    http::Uri,
     ssdp::{SearchTarget, URN},
-    DeviceSpec, Error, Service, Uri,
+    DeviceSpec, Error, Service,
 };
 
 #[async_std::main]

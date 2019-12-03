@@ -59,8 +59,7 @@ pub use discovery::discover;
 pub use error::Error;
 pub use service::Service;
 
-#[doc(no_inline)]
-pub use http::Uri;
+pub use http;
 pub use ssdp_client as ssdp;
 
 pub(crate) type Result<T, E = Error> = std::result::Result<T, E>;
