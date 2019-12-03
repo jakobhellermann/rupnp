@@ -285,27 +285,39 @@ async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, S
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
         let mut lines = BufReader::new(yield_try!(co => stream)).lines();
+
+        let mut input = String::new();
+        let mut is_xml = false;
+
+        // sometimes the xml is on one line, sometimes on multiple ones.
+        // we dont care about the http stuff before the "<e:propertyset>"
         while let Some(line) = lines.next().await {
             let line = yield_try!(co => line);
-            if line.starts_with("<e:propertyset") {
-                let doc = Document::parse(&line).expect("todo");
-
-                let hashmap: HashMap<String, String> = doc
-                    .root_element()
-                    .children()
-                    .filter_map(|child| child.first_element_child())
-                    .filter_map(|node| {
-                        if let Some(text) = node.text() {
-                            Some((node.tag_name().name().to_string(), text.to_string()))
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-
-                co.yield_(Ok(hashmap)).await;
+            if is_xml || line.starts_with("<e:propertyset") {
+                input.push_str(&line);
+                is_xml = true;
             }
+
+            if line.ends_with("</e:propertyset>") {
+                break;
+            };
         }
+
+        let doc = yield_try!(co => Document::parse(&input));
+        let hashmap: HashMap<String, String> = doc
+            .root_element()
+            .children()
+            .filter_map(|child| child.first_element_child())
+            .filter_map(|node| {
+                if let Some(text) = node.text() {
+                    Some((node.tag_name().name().to_string(), text.to_string()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        co.yield_(Ok(hashmap)).await;
     }
 }
 
