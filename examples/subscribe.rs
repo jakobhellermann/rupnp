@@ -12,8 +12,8 @@ async fn main() -> Result<(), upnp::Error> {
 
     let (sid, mut stream) = service.subscribe(device.url(), 10).await?;
 
-    while let Some(state_vars) = stream.next().await {
-        handle(state_vars?);
+    while let Some(state_vars) = stream.try_next().await? {
+        handle(state_vars);
         service.renew_subscription(device.url(), &sid, 10).await?;
     }
 

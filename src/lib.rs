@@ -29,9 +29,7 @@
 //!     let devices = upnp::discover(&RENDERING_CONTROL.into(), Duration::from_secs(3)).await?;
 //!     pin_utils::pin_mut!(devices);
 //!
-//!     while let Some(device) = devices.next().await {
-//!         let device = device?;
-//!
+//!     while let Some(device) = devices.try_next().await? {
 //!         let service = device
 //!             .find_service(&RENDERING_CONTROL)
 //!             .expect("searched for RenderingControl, got something else");

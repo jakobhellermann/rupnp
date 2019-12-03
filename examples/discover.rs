@@ -7,8 +7,7 @@ async fn main() -> Result<(), upnp::Error> {
     let devices = upnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3)).await?;
     pin_utils::pin_mut!(devices);
 
-    while let Some(device) = devices.next().await {
-        let device = device?;
+    while let Some(device) = devices.try_next().await? {
         println!(
             "{} - {} @ {}",
             device.device_type(),

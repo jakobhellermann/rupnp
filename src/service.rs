@@ -204,8 +204,8 @@ impl Service {
     /// # let service: upnp::Service = unimplemented!();
     /// let (_sid, stream) = service.subscribe(device.url(), 300).await?;
     ///
-    /// while let Some(state_vars) = stream.next().await {
-    ///     for (key, value) in state_vars? {
+    /// while let Some(state_vars) = stream.try_next().await? {
+    ///     for (key, value) in state_vars {
     ///         println!("{} => {}", key, value);
     ///     }
     /// }
