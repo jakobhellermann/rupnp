@@ -1,4 +1,4 @@
-use async_std::task::spawn;
+use async_std::task::{spawn, JoinHandle};
 use futures::prelude::*;
 use std::{
     fs,
@@ -27,15 +27,27 @@ async fn main() -> Result<(), Error> {
         fs::remove_dir_all(&path)?;
     }
 
+    let mut handles = Vec::new();
+
     for device in devices {
-        print(&device, device.url(), 0, &path)?;
+        print(&device, device.url(), 0, &path, &mut handles)?;
         println!("");
+    }
+
+    for handle in handles {
+        handle.await?;
     }
 
     Ok(())
 }
 
-fn print(device: &DeviceSpec, url: &Uri, indentation: usize, path: &Path) -> Result<(), Error> {
+fn print(
+    device: &DeviceSpec,
+    url: &Uri,
+    indentation: usize,
+    path: &Path,
+    handles: &mut Vec<JoinHandle<Result<(), upnp::Error>>>,
+) -> Result<(), Error> {
     let path = path.join(urn_to_str(device.device_type()));
     fs::create_dir_all(&path)?;
 
@@ -47,18 +59,13 @@ fn print(device: &DeviceSpec, url: &Uri, indentation: usize, path: &Path) -> Res
         let svc = urn_to_str(service.service_type());
         let svc_file = fs::File::create(path.join(&svc))?;
 
-        spawn(
-            write_service(svc_file, service.clone(), url.clone()).map(|x| match x {
-                Err(e) => eprintln!("failed to fetch and write scpd: {}", e),
-                _ => {}
-            }),
-        );
+        handles.push(spawn(write_service(svc_file, service.clone(), url.clone())));
 
         println!("{}  - {}", i, svc);
     }
 
     for device in device.devices() {
-        print(device, url, indentation + 1, &path)?;
+        print(device, url, indentation + 1, &path, handles)?;
     }
 
     Ok(())
