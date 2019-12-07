@@ -13,13 +13,14 @@ and print their names along with their current volume.
 ```rust,no_run
 use futures::prelude::*;
 use std::time::Duration;
-use upnp::ssdp::URN;
+use upnp::ssdp::{SearchTarget, URN};
 
 const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
 #[async_std::main]
 async fn main() -> Result<(), upnp::Error> {
-    let devices = upnp::discover(&RENDERING_CONTROL.into(), Duration::from_secs(3)).await?;
+    let search_target = SearchTarget::URN(RENDERING_CONTROL);
+    let devices = upnp::discover(search_target, Duration::from_secs(3)).await?;
     pin_utils::pin_mut!(devices);
 
     while let Some(device) = devices.try_next().await? {

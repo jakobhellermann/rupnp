@@ -198,7 +198,7 @@ impl Service {
     ///
     /// # Example usage:
     /// ```rust,no_run
-    /// # use async_std::prelude::*;
+    /// # use futures::prelude::*;
     /// # async fn subscribe_example() -> Result<(), upnp::Error> {
     /// # let device: upnp::Device = unimplemented!();
     /// # let service: upnp::Service = unimplemented!();
