@@ -25,7 +25,7 @@ macro_rules! find_in_xml {
             $(let mut $var = None;)?
             $(let mut $var_opt = None;)?
         )*
-        for child in node.children().filter(Node::is_element) {
+        for child in node.children().filter(roxmltree::Node::is_element) {
             match child.tag_name().name() {
                 $(
                     $(stringify!($var) => $var = Some(child),)?
@@ -35,12 +35,12 @@ macro_rules! find_in_xml {
             }
         }
 
-        $(
-            $(let $var = $var.ok_or_else(|| crate::Error::XMLMissingElement(
-                    node.tag_name().name().to_string(),
-                    stringify!($var).to_string(),
-                ))?;)?
-        )*
+        $($(
+            let $var = $var.ok_or_else(|| crate::Error::XmlMissingElement(
+                node.tag_name().name().to_string(),
+                stringify!($var).to_string(),
+            ))?;
+        )?)*
 
         ($(
             $($var)?
@@ -69,7 +69,7 @@ pub fn find_root<'a, 'input: 'a>(
         .descendants()
         .filter(Node::is_element)
         .find(|n| n.tag_name().name().eq_ignore_ascii_case(element))
-        .ok_or_else(|| Error::XMLMissingElement(docname.to_string(), element.to_string()))
+        .ok_or_else(|| Error::XmlMissingElement(docname.to_string(), element.to_string()))
 }
 
 pub fn find_node_attribute<'n, 'd: 'n>(node: Node<'d, 'n>, attr: &str) -> Option<&'n str> {

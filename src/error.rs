@@ -1,3 +1,4 @@
+use crate::find_in_xml;
 use std::{fmt, str::Utf8Error};
 
 /// The UPnP Error type.
@@ -5,17 +6,15 @@ use std::{fmt, str::Utf8Error};
 pub enum Error {
     UPnPError(UPnPError),
     SSDPError(ssdp_client::Error),
-    IO(std::io::Error),
     NetworkError(isahc::Error),
-    MissingHeader(&'static str),
+    IO(std::io::Error),
     InvalidUrl(http::uri::InvalidUri),
     InvalidUtf8(Utf8Error),
     ParseError(&'static str),
-    InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
     HttpErrorCode(http::StatusCode),
     XmlError(roxmltree::Error),
-    XMLMissingElement(String, String),
-    XMLMissingText(String),
+    XmlMissingElement(String, String),
+    InvalidResponse(Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 impl Error {
     pub fn invalid_response<E: std::error::Error + Send + Sync + 'static>(err: E) -> Error {
@@ -32,7 +31,6 @@ impl fmt::Display for Error {
             Error::NetworkError(err) => {
                 write!(f, "An error occurred trying to connect to device: {}", err)
             }
-            Error::MissingHeader(header) => write!(f, "missing header '{}'", header),
             Error::InvalidUrl(err) => write!(f, "invalid url: {}", err),
             Error::InvalidUtf8(err) => write!(f, "invalid utf8: {}", err),
             Error::ParseError(err) => write!(f, "{}", err),
@@ -41,12 +39,11 @@ impl fmt::Display for Error {
                 write!(f, "The control point responded with status code {}", code)
             }
             Error::XmlError(err) => write!(f, "failed to parse xml: {}", err),
-            Error::XMLMissingElement(parent, child) => write!(
+            Error::XmlMissingElement(parent, child) => write!(
                 f,
                 "`{}` does not contain a `{}` element or attribute",
                 parent, child
             ),
-            Error::XMLMissingText(element) => write!(f, "element `{}`'s text is empty", element),
         }
     }
 }
@@ -54,10 +51,12 @@ impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Error::UPnPError(err) => Some(err),
-            Error::InvalidUrl(err) => Some(err),
-            Error::XmlError(err) => Some(err),
-            Error::NetworkError(err) => Some(err),
             Error::SSDPError(err) => Some(err),
+            Error::NetworkError(err) => Some(err),
+            Error::IO(err) => Some(err),
+            Error::InvalidUrl(err) => Some(err),
+            Error::InvalidUtf8(err) => Some(err),
+            Error::XmlError(err) => Some(err),
             _ => None,
         }
     }
@@ -140,30 +139,18 @@ impl UPnPError {
     }
 
     pub(crate) fn from_fault_node(node: roxmltree::Node<'_, '_>) -> Result<UPnPError, Error> {
-        let mut fault_code = None;
-        let mut fault_string = None;
-        let mut err_code = None;
-
-        for child in node.descendants() {
-            match child.tag_name().name() {
-                "faultcode" => fault_code = child.text(),
-                "faultstring" => fault_string = child.text(),
-                "errorCode" => err_code = child.text(),
-                _ => (),
-            }
-        }
-
-        let fault_code = fault_code
-            .ok_or(Error::ParseError("`fault` element contains no `faultcode`"))?
-            .to_string();
-        let fault_string = fault_string
-            .ok_or(Error::ParseError(
-                "`fault` element contains no `errCode` or it wasn't an integer",
-            ))?
-            .to_string();
-        let err_code = err_code
-            .and_then(|err_code| err_code.parse().ok())
-            .ok_or(Error::ParseError("`fault` element contains no `faultcode`"))?;
+        let (fault_code, fault_string, detail) =
+            find_in_xml! { node => faultcode, faultstring, detail };
+        let fault_code = fault_code.text().unwrap_or_default().to_string();
+        let fault_string = fault_string.text().unwrap_or_default().to_string();
+        let err_code = detail
+            .descendants()
+            .find(|n| n.tag_name().name().eq_ignore_ascii_case("errorCode"))
+            .ok_or_else(|| Error::XmlMissingElement("detail".to_string(), "errorCode".to_string()))?
+            .text()
+            .unwrap_or_default()
+            .parse()
+            .map_err(Error::invalid_response)?;
 
         Ok(UPnPError {
             fault_code,

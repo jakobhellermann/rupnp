@@ -34,9 +34,7 @@ pub async fn discover(
 ) -> Result<impl Stream<Item = Result<Device>>> {
     Ok(ssdp_client::search(search_target, timeout, 3)
         .await?
-        .map(|res| match res {
-            Ok(search_response) => Ok(search_response.location().to_string().parse()?),
-            Err(e) => Err(Error::SSDPError(e)),
-        })
+        .map_err(Error::SSDPError)
+        .map(|res| Ok(res?.location().parse()?))
         .and_then(Device::from_url))
 }

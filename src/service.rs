@@ -128,36 +128,33 @@ impl Service {
             .unwrap()
             .send_async()
             .await?
-            .err_if_not_200()?
             .text_async()
             .await?;
 
         let document = Document::parse(&doc)?;
-        let body = utils::find_root(&document, "Body", "UPnP Response")?;
+        let response = utils::find_root(&document, "Body", "UPnP Response")?
+            .first_element_child()
+            .ok_or_else(|| {
+                Error::XmlMissingElement("Body".to_string(), format!("{}Response", action))
+            })?;
 
-        let first_child = body.first_element_child().ok_or(Error::ParseError(
-            "the upnp responses `Body` element has no children",
-        ))?;
-
-        if first_child.tag_name().name().eq_ignore_ascii_case("Fault") {
-            Err(UPnPError::from_fault_node(first_child)?.into())
-        } else if first_child.tag_name().name().starts_with(action) {
-            Ok(first_child
-                .children()
-                .filter(Node::is_element)
-                .filter_map(|node| -> Option<(String, String)> {
-                    if let Some(text) = node.text() {
-                        Some((node.tag_name().name().to_string(), text.to_string()))
-                    } else {
-                        None
-                    }
-                })
-                .collect::<HashMap<_, _>>())
-        } else {
-            Err(Error::ParseError(
-                "upnp response contains neither `fault` nor `${ACTION}Response` element",
-            ))
+        if response.tag_name().name().eq_ignore_ascii_case("Fault") {
+            return Err(UPnPError::from_fault_node(response)?.into());
         }
+
+        let values: HashMap<_, _> = response
+            .children()
+            .filter(Node::is_element)
+            .filter_map(|node| -> Option<(String, String)> {
+                if let Some(text) = node.text() {
+                    Some((node.tag_name().name().to_string(), text.to_string()))
+                } else {
+                    None
+                }
+            })
+            .collect();
+
+        Ok(values)
     }
 
     async fn make_subscribe_request(
@@ -181,7 +178,7 @@ impl Service {
         let sid = response
             .headers()
             .get("sid")
-            .ok_or_else(|| Error::MissingHeader("SID"))?
+            .ok_or_else(|| Error::ParseError("missing http header `SID`"))?
             .to_str()
             .map_err(|_| Error::ParseError("SID header contained non-visible ASCII bytes"))?
             .to_string();

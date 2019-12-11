@@ -122,12 +122,12 @@ impl Argument {
 
         let related_statevar = related_statevar
             .text()
-            .ok_or_else(|| Error::XMLMissingText("relatedStateVariable".to_string()))?;
+            .ok_or_else(|| Error::ParseError("`relatedStateVariable` is empty"))?;
 
         let state_var = state_variables
             .iter()
             .find(|sv| sv.name().eq_ignore_ascii_case(related_statevar))
-            .expect("every argument has it's corresponding state variable")
+            .ok_or_else(|| Error::ParseError("found argument without related state variable"))?
             .clone();
 
         let direction = direction.text().unwrap_or_default().to_ascii_lowercase();
