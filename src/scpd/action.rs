@@ -68,10 +68,6 @@ impl Action {
         &self.name
     }
 
-    pub fn arguments(&self) -> &[Argument] {
-        &self.arguments
-    }
-
     pub fn input_arguments(&self) -> impl Iterator<Item = &Argument> {
         self.arguments.iter().filter(|a| a.is_input())
     }
