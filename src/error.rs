@@ -7,6 +7,7 @@ pub enum Error {
     UPnPError(UPnPError),
     SSDPError(ssdp_client::Error),
     NetworkError(isahc::Error),
+    NoLocalInterfaceOpen,
     IO(std::io::Error),
     InvalidUrl(http::uri::InvalidUri),
     InvalidUtf8(Utf8Error),
@@ -31,6 +32,10 @@ impl fmt::Display for Error {
             Error::NetworkError(err) => {
                 write!(f, "An error occurred trying to connect to device: {}", err)
             }
+            Error::NoLocalInterfaceOpen => write!(
+                f,
+                "could not subscribe to events: no local ipv4 interface open"
+            ),
             Error::InvalidUrl(err) => write!(f, "invalid url: {}", err),
             Error::InvalidUtf8(err) => write!(f, "invalid utf8: {}", err),
             Error::ParseError(err) => write!(f, "{}", err),
@@ -118,6 +123,10 @@ impl fmt::Display for UPnPError {
 }
 
 impl UPnPError {
+    pub fn err_code(&self) -> u16 {
+        self.err_code
+    }
+
     pub fn err_code_description(&self) -> &str {
         match self.err_code {
             401 => "No action by that name at this service.",

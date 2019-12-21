@@ -125,7 +125,7 @@ impl Service {
             .header("CONTENT-TYPE", "xml")
             .header("SOAPAction", soap_action)
             .body(body)
-            .unwrap()
+            .expect("infallible")
             .send_async()
             .await?
             .text_async()
@@ -170,7 +170,7 @@ impl Service {
             .header("NT", "upnp:event")
             .header("TIMEOUT", format!("Second-{}", timeout_secs))
             .body(())
-            .unwrap()
+            .expect("infallible")
             .send_async()
             .await?
             .err_if_not_200()?;
@@ -214,10 +214,10 @@ impl Service {
         url: &Uri,
         timeout_secs: u32,
     ) -> Result<(String, impl Stream<Item = Result<HashMap<String, String>>>)> {
-        let addr = utils::get_local_addr();
+        let addr = utils::get_local_addr()?;
         let listener = TcpListener::bind(addr).await?;
 
-        let addr = format!("http://{}", listener.local_addr().unwrap());
+        let addr = format!("http://{}", listener.local_addr()?);
 
         let sid = self
             .make_subscribe_request(url, &addr, timeout_secs)
@@ -238,7 +238,7 @@ impl Service {
             .header("SID", sid)
             .header("TIMEOUT", format!("Second-{}", timeout_secs))
             .body(())
-            .unwrap()
+            .expect("infallible")
             .send_async()
             .await?
             .err_if_not_200()?;
@@ -257,7 +257,7 @@ impl Service {
             .method("UNSUBSCRIBE")
             .header("SID", sid)
             .body(())
-            .unwrap()
+            .expect("infallible")
             .send_async()
             .await?
             .err_if_not_200()?;

@@ -79,9 +79,8 @@ pub fn find_node_attribute<'n, 'd: 'n>(node: Node<'d, 'n>, attr: &str) -> Option
         .map(Attribute::value)
 }
 
-pub fn get_local_addr() -> SocketAddrV4 {
-    let addr = get_if_addrs()
-        .unwrap()
+pub fn get_local_addr() -> Result<SocketAddrV4> {
+    get_if_addrs()?
         .iter()
         .map(Interface::ip)
         .filter_map(|addr| match addr {
@@ -89,6 +88,6 @@ pub fn get_local_addr() -> SocketAddrV4 {
             IpAddr::V6(_) => None,
         })
         .find(|x| x.is_private())
-        .expect("no local ipv4 interface open");
-    SocketAddrV4::new(addr, 0)
+        .ok_or(Error::NoLocalInterfaceOpen)
+        .map(|addr| SocketAddrV4::new(addr, 0))
 }

@@ -21,7 +21,7 @@ genawaiter = { version = "0.2", features = ["futures03"] }
 http = "0.2"
 ssdp-client = "0.5"
 roxmltree = "0.7"
-isahc = { git = "https://github.com/sagebind/isahc.git", branch = "48-http-0.2-configurable", default-features = false, features = ["http2"] }
+isahc = { git = "https://github.com/sagebind/isahc.git" }
 
 [dev-dependencies]
 async-std = { version = "1.0", features = ["attributes"] }
