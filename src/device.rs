@@ -4,10 +4,11 @@ use crate::{
     Result, Service,
 };
 use http::Uri;
+use isahc::prelude::*;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// A UPnP Device.
 /// It stores its [`Uri`] and a [`DeviceSpec`], which contains information like the device type and
 /// its list of inner devices and services.
@@ -27,7 +28,6 @@ impl Device {
         let body = isahc::get_async(&url)
             .await?
             .err_if_not_200()?
-            .body_mut()
             .text_async()
             .await?;
 
@@ -53,7 +53,7 @@ impl std::ops::Deref for Device {
 ///
 /// If you also want the `ManufacturerURL`, `Model{Description,Number,Url}`, `serial number`, `UDN` and
 /// `UPC`, enable the `full_device_spec` feature.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct DeviceSpec {
     device_type: URN,
     friendly_name: String,

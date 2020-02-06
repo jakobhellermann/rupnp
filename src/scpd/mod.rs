@@ -3,8 +3,8 @@ use crate::{
     utils::{self, HttpResponseExt},
     Error,
 };
-
 use http::Uri;
+use isahc::prelude::*;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 use std::rc::Rc;
@@ -40,7 +40,6 @@ impl SCPD {
         let body = isahc::get_async(url)
             .await?
             .err_if_not_200()?
-            .body_mut()
             .text_async()
             .await?;
 
