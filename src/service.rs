@@ -278,6 +278,24 @@ macro_rules! yield_try {
     };
 }
 
+fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree::Error> {
+    let doc = Document::parse(&input)?;
+    let hashmap: HashMap<String, String> = doc
+        .root_element() // <e:propertyset />
+        .children() // <e:property />
+        .filter_map(|child| child.first_element_child()) // actual tag
+        .filter_map(|node| {
+            if let Some(text) = node.text() {
+                Some((node.tag_name().name().to_string(), text.to_string()))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(hashmap)
+}
+
 async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
@@ -300,19 +318,7 @@ async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, S
             };
         }
 
-        let doc = yield_try!(co => Document::parse(&input));
-        let hashmap: HashMap<String, String> = doc
-            .root_element()
-            .children()
-            .filter_map(|child| child.first_element_child())
-            .filter_map(|node| {
-                if let Some(text) = node.text() {
-                    Some((node.tag_name().name().to_string(), text.to_string()))
-                } else {
-                    None
-                }
-            })
-            .collect();
+        let hashmap = yield_try!(co => propertyset_to_map(&input));
 
         co.yield_(Ok(hashmap)).await;
     }
