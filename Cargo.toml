@@ -17,11 +17,11 @@ full_device_spec = []
 async-std = "1"
 futures-util = { version = "0.3", default-features = false }
 get_if_addrs = "0.5"
-genawaiter = { version = "0.2", features = ["futures03"] }
-http = "0.1"
+genawaiter = { version = "0.99", features = ["futures03"] }
+http = "0.2"
 ssdp-client = "0.5"
 roxmltree = "0.9"
-isahc = "0.8"
+isahc = "0.9"
 
 [dev-dependencies]
 async-std = { version = "1.0", features = ["attributes"] }
