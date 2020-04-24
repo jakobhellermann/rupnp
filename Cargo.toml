@@ -1,6 +1,6 @@
 [package]
 name = "rupnp"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 readme = "README.md"
 repository = "https://github.com/jjakobh/upnp"
@@ -20,7 +20,7 @@ get_if_addrs = "0.5"
 genawaiter = { version = "0.99", features = ["futures03"] }
 http = "0.2"
 ssdp-client = "0.5"
-roxmltree = "0.9"
+roxmltree = "0.11"
 isahc = "0.9"
 
 [dev-dependencies]
