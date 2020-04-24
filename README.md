@@ -1,11 +1,11 @@
-# upnp
+# rupnp
 An asynchronous library for finding UPnP control points, performing actions on them
 and reading their service descriptions.
 UPnP stand for `Universal Plug and Play` and is widely used for routers, WiFi-enabled speakers
 and media servers.
 
 Spec:
-[http://upnp.org/specs/arch/UPnP-arch-DeviceArchitecture-v2.0.pdf](http://upnp.org/specs/arch/UPnP-arch-DeviceArchitecture-v2.0.pdf)
+[http://rupnp.org/specs/arch/UPnP-arch-DeviceArchitecture-v2.0.pdf](http://upnp.org/specs/arch/UPnP-arch-DeviceArchitecture-v2.0.pdf)
 
 # Example usage:
 The following code searches for devices that have a `RenderingControl` service 
@@ -13,14 +13,14 @@ and print their names along with their current volume.
 ```rust,no_run
 use futures::prelude::*;
 use std::time::Duration;
-use upnp::ssdp::{SearchTarget, URN};
+use rupnp::ssdp::{SearchTarget, URN};
 
 const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
 #[async_std::main]
-async fn main() -> Result<(), upnp::Error> {
+async fn main() -> Result<(), rupnp::Error> {
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
-    let devices = upnp::discover(search_target, Duration::from_secs(3)).await?;
+    let devices = rupnp::discover(search_target, Duration::from_secs(3)).await?;
     pin_utils::pin_mut!(devices);
 
     while let Some(device) = devices.try_next().await? {

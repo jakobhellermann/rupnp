@@ -1,9 +1,9 @@
 use futures::prelude::*;
+use rupnp::{http::Uri, ssdp::URN, Device};
 use std::collections::HashMap;
-use upnp::{http::Uri, ssdp::URN, Device};
 
 #[async_std::main]
-async fn main() -> Result<(), upnp::Error> {
+async fn main() -> Result<(), rupnp::Error> {
     let url = Uri::from_static("http://192.168.2.49:1400/xml/device_description.xml");
     let service_urn = URN::service("schemas-upnp-org", "ZoneGroupTopology", 1);
 

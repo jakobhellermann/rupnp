@@ -1,5 +1,5 @@
 [package]
-name = "upnp"
+name = "rupnp"
 version = "0.1.0"
 authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 readme = "README.md"

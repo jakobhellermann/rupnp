@@ -1,20 +1,20 @@
 use async_std::task::{spawn, JoinHandle};
 use futures::prelude::*;
+use rupnp::{
+    http::Uri,
+    ssdp::{SearchTarget, URN},
+    DeviceSpec, Error, Service,
+};
 use std::{
     fs,
     io::Write,
     path::{Path, PathBuf},
     time::Duration,
 };
-use upnp::{
-    http::Uri,
-    ssdp::{SearchTarget, URN},
-    DeviceSpec, Error, Service,
-};
 
 #[async_std::main]
 async fn main() -> Result<(), Error> {
-    let mut devices: Vec<_> = upnp::discover(&SearchTarget::RootDevice, Duration::from_secs(1))
+    let mut devices: Vec<_> = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(1))
         .await?
         .try_collect()
         .await?;
@@ -46,7 +46,7 @@ fn print(
     url: &Uri,
     indentation: usize,
     path: &Path,
-    handles: &mut Vec<JoinHandle<Result<(), upnp::Error>>>,
+    handles: &mut Vec<JoinHandle<Result<(), rupnp::Error>>>,
 ) -> Result<(), Error> {
     let path = path.join(urn_to_str(device.device_type()));
     fs::create_dir_all(&path)?;

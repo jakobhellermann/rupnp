@@ -1,13 +1,13 @@
 use futures::prelude::*;
+use rupnp::ssdp::{SearchTarget, URN};
 use std::time::Duration;
-use upnp::ssdp::{SearchTarget, URN};
 
 const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
 #[async_std::main]
-async fn main() -> Result<(), upnp::Error> {
+async fn main() -> Result<(), rupnp::Error> {
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
-    let devices = upnp::discover(&search_target, Duration::from_secs(3)).await?;
+    let devices = rupnp::discover(&search_target, Duration::from_secs(3)).await?;
     pin_utils::pin_mut!(devices);
 
     while let Some(device) = devices.try_next().await? {
