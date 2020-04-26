@@ -2,7 +2,7 @@ use futures::prelude::*;
 use rupnp::ssdp::SearchTarget;
 use std::time::Duration;
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), rupnp::Error> {
     let devices = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3)).await?;
     pin_utils::pin_mut!(devices);

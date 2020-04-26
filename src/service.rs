@@ -6,15 +6,20 @@ use crate::{
     Result,
 };
 
-use async_std::{io::BufReader, net::TcpListener, prelude::*};
 use genawaiter::sync::{Co, Gen};
+use tokio::{
+    io::BufReader,
+    net::TcpListener,
+    prelude::*,
+    stream::{Stream, StreamExt},
+};
 
-use http::{uri::PathAndQuery, Uri};
-use isahc::prelude::*;
+use http::{uri::PathAndQuery, Request, Uri};
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 
 use std::collections::HashMap;
+use utils::HyperBodyExt;
 
 /// A UPnP Service is the description of endpoints on a device for performing actions and reading
 /// the service definition.
@@ -121,15 +126,19 @@ impl Service {
 
         let soap_action = format!("\"{}#{}\"", &self.service_type, action);
 
-        let doc = Request::post(self.control_url(url))
+        let request = Request::post(self.control_url(url))
             .header("CONTENT-TYPE", "xml")
             .header("SOAPAction", soap_action)
-            .body(body)
-            .expect("infallible")
-            .send_async()
+            .body(body.into())
+            .expect("infallible");
+        let doc = hyper::Client::new()
+            .request(request)
             .await?
-            .text_async()
+            .err_if_not_200()?
+            .into_body()
+            .text()
             .await?;
+        let doc = std::str::from_utf8(&doc)?;
 
         let document = Document::parse(&doc)?;
         let response = utils::find_root(&document, "Body", "UPnP Response")?
@@ -163,17 +172,16 @@ impl Service {
         callback: &str,
         timeout_secs: u32,
     ) -> Result<String> {
-        let response = Request::builder()
+        let req = Request::builder()
             .uri(self.event_sub_url(url))
             .method("SUBSCRIBE")
             .header("CALLBACK", format!("<{}>", callback))
             .header("NT", "upnp:event")
             .header("TIMEOUT", format!("Second-{}", timeout_secs))
-            .body(())
-            .expect("infallible")
-            .send_async()
-            .await?
-            .err_if_not_200()?;
+            .body(hyper::Body::empty())
+            .expect("infallible");
+
+        let response = hyper::Client::new().request(req).await?.err_if_not_200()?;
 
         let sid = response
             .headers()
@@ -232,16 +240,14 @@ impl Service {
     ///
     /// When the sid is invalid, the control point will respond with a `412 Preconditition failed`.
     pub async fn renew_subscription(&self, url: &Uri, sid: &str, timeout_secs: u32) -> Result<()> {
-        Request::builder()
+        let req = Request::builder()
             .uri(self.event_sub_url(url))
             .method("SUBSCRIBE")
             .header("SID", sid)
             .header("TIMEOUT", format!("Second-{}", timeout_secs))
-            .body(())
-            .expect("infallible")
-            .send_async()
-            .await?
-            .err_if_not_200()?;
+            .body(hyper::Body::empty())
+            .expect("infallible");
+        hyper::Client::new().request(req).await?.err_if_not_200()?;
 
         Ok(())
     }
@@ -252,15 +258,14 @@ impl Service {
     ///
     /// When the sid is invalid, the control point will respond with a `412 Preconditition failed`.
     pub async fn unsubscribe(&self, url: &Uri, sid: &str) -> Result<()> {
-        Request::builder()
+        let req = Request::builder()
             .uri(self.event_sub_url(url))
             .method("UNSUBSCRIBE")
             .header("SID", sid)
-            .body(())
-            .expect("infallible")
-            .send_async()
-            .await?
-            .err_if_not_200()?;
+            .body(hyper::Body::empty())
+            .expect("infallible");
+
+        hyper::Client::new().request(req).await?.err_if_not_200()?;
 
         Ok(())
     }
@@ -296,7 +301,7 @@ fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree:
     Ok(hashmap)
 }
 
-async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
+async fn subscribe_stream(mut listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
         let mut lines = BufReader::new(yield_try!(co => stream)).lines();

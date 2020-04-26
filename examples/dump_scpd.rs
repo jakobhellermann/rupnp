@@ -1,4 +1,3 @@
-use async_std::task::{spawn, JoinHandle};
 use futures::prelude::*;
 use rupnp::{
     http::Uri,
@@ -7,12 +6,13 @@ use rupnp::{
 };
 use std::{
     fs,
-    io::Write,
     path::{Path, PathBuf},
     time::Duration,
 };
+use tokio::prelude::*;
+use tokio::task::{spawn, JoinHandle};
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), Error> {
     let mut devices: Vec<_> = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(1))
         .await?
@@ -35,7 +35,7 @@ async fn main() -> Result<(), Error> {
     }
 
     for handle in handles {
-        handle.await?;
+        handle.await.unwrap()?;
     }
 
     Ok(())
@@ -57,11 +57,22 @@ fn print(
 
     for service in device.services() {
         let svc = urn_to_str(service.service_type());
-        let svc_file = fs::File::create(path.join(&svc))?;
-
-        handles.push(spawn(write_service(svc_file, service.clone(), url.clone())));
 
         println!("{}  - {}", i, svc);
+
+        let url = url.clone();
+        let path = path.clone();
+        let service = service.clone();
+
+        handles.push(spawn(async move {
+            let mut svc_file = tokio::fs::File::create(path.join(&svc)).await?;
+
+            let mut buf = Vec::with_capacity(128);
+            write_service(&mut buf, service, url).await?;
+
+            svc_file.write_all(&buf).await?;
+            Ok(())
+        }));
     }
 
     for device in device.devices() {
@@ -71,7 +82,11 @@ fn print(
     Ok(())
 }
 
-async fn write_service(mut w: impl Write, service: Service, url: Uri) -> Result<(), Error> {
+async fn write_service(
+    mut w: impl std::io::Write,
+    service: Service,
+    url: Uri,
+) -> Result<(), Error> {
     let scpd = service.scpd(&url).await?;
 
     writeln!(w, "StateVars {{")?;

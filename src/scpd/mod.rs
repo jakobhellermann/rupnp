@@ -1,10 +1,9 @@
 use crate::{
     find_in_xml,
-    utils::{self, HttpResponseExt},
+    utils::{self, HttpResponseExt, HyperBodyExt},
     Error,
 };
 use http::Uri;
-use isahc::prelude::*;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 use std::rc::Rc;
@@ -37,11 +36,14 @@ impl SCPD {
     /// Fetches the SCPD description.
     /// The `urn` has to be provided because it isn't included in the description.
     pub(crate) async fn from_url(url: &Uri, urn: URN) -> Result<Self, Error> {
-        let body = isahc::get_async(url)
+        let body = hyper::Client::new()
+            .get(url.clone())
             .await?
             .err_if_not_200()?
-            .text_async()
+            .into_body()
+            .text()
             .await?;
+        let body = std::str::from_utf8(&body)?;
 
         let document = Document::parse(&body)?;
         let scpd = utils::find_root(&document, "scpd", "Service Control Point Definition")?;

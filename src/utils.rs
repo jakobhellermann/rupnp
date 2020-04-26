@@ -6,13 +6,40 @@ use std::net::{IpAddr, SocketAddrV4};
 pub trait HttpResponseExt: Sized {
     fn err_if_not_200(self) -> Result<Self>;
 }
-impl HttpResponseExt for http::Response<isahc::Body> {
+impl HttpResponseExt for hyper::Response<hyper::Body> {
     fn err_if_not_200(self) -> Result<Self> {
         if self.status() != 200 {
             Err(Error::HttpErrorCode(self.status()))
         } else {
             Ok(self)
         }
+    }
+}
+pub trait HyperBodyExt: Sized {
+    fn text(
+        self,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<bytes::Bytes>> + Send + Sync + 'static>,
+    >;
+}
+impl HyperBodyExt for hyper::Body {
+    fn text(
+        self,
+    ) -> std::pin::Pin<
+        Box<dyn std::future::Future<Output = Result<bytes::Bytes>> + Send + Sync + 'static>,
+    > {
+        use futures_util::stream::TryStreamExt;
+
+        Box::pin(async {
+            let body = self
+                .try_fold(bytes::BytesMut::new(), |mut acc, chunk| async {
+                    acc.extend(chunk);
+                    Ok(acc)
+                })
+                .await?;
+
+            Ok(body.freeze())
+        })
     }
 }
 

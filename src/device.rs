@@ -1,10 +1,9 @@
 use crate::{
     find_in_xml,
-    utils::{self, HttpResponseExt},
+    utils::{self, HttpResponseExt, HyperBodyExt},
     Result, Service,
 };
 use http::Uri;
-use isahc::prelude::*;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 
@@ -25,11 +24,14 @@ impl Device {
     /// The url should point to the `/device_description.xml` or similar of the device.
     /// If you dont know the concrete location, use [`discover`](fn.discover.html) instead.
     pub async fn from_url(url: Uri) -> Result<Self> {
-        let body = isahc::get_async(&url)
+        let body = hyper::Client::new()
+            .get(url.clone())
             .await?
             .err_if_not_200()?
-            .text_async()
+            .into_body()
+            .text()
             .await?;
+        let body = std::str::from_utf8(&body)?;
 
         let document = Document::parse(&body)?;
         let device = utils::find_root(&document, "device", "Device Description")?;

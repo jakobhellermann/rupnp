@@ -6,7 +6,7 @@ use std::{fmt, str::Utf8Error};
 pub enum Error {
     UPnPError(UPnPError),
     SSDPError(ssdp_client::Error),
-    NetworkError(isahc::Error),
+    NetworkError(hyper::Error),
     NoLocalInterfaceOpen,
     IO(std::io::Error),
     InvalidUrl(http::uri::InvalidUri),
@@ -66,8 +66,8 @@ impl std::error::Error for Error {
         }
     }
 }
-impl From<isahc::Error> for Error {
-    fn from(err: isahc::Error) -> Self {
+impl From<hyper::Error> for Error {
+    fn from(err: hyper::Error) -> Self {
         Error::NetworkError(err)
     }
 }
