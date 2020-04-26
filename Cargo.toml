@@ -1,6 +1,6 @@
 [package]
 name = "rupnp"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 readme = "README.md"
 repository = "https://github.com/jjakobh/upnp"
@@ -27,4 +27,4 @@ bytes = "0.5"
 [dev-dependencies]
 tokio = { version = "0.2", features = ["macros", "fs"] }
 futures = "0.3"
-pin-utils = "0.1.0-alpha"
+pin-utils = "0.1"

@@ -81,10 +81,10 @@ impl Service {
     ///
     /// ```rust,no_run
     /// # use ssdp_client::URN;
-    /// # async fn rendering_control_example() -> Result<(), upnp::Error> {
+    /// # async fn rendering_control_example() -> Result<(), rupnp::Error> {
     /// # let some_url = unimplemented!();
-    /// use upnp::ssdp::URN;
-    /// use upnp::Device;
+    /// use rupnp::ssdp::URN;
+    /// use rupnp::Device;
     ///
     /// let urn = URN::service("schemas-upnp-org", "RenderingControl", 1);
     ///
@@ -204,9 +204,9 @@ impl Service {
     /// # Example usage:
     /// ```rust,no_run
     /// # use futures::prelude::*;
-    /// # async fn subscribe_example() -> Result<(), upnp::Error> {
-    /// # let device: upnp::Device = unimplemented!();
-    /// # let service: upnp::Service = unimplemented!();
+    /// # async fn subscribe_example() -> Result<(), rupnp::Error> {
+    /// # let device: rupnp::Device = unimplemented!();
+    /// # let service: rupnp::Service = unimplemented!();
     /// let (_sid, stream) = service.subscribe(device.url(), 300).await?;
     ///
     /// while let Some(state_vars) = stream.try_next().await? {

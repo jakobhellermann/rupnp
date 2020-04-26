@@ -9,10 +9,10 @@ use std::time::Duration;
 /// ```rust,norun
 /// use futures::prelude::*;
 /// use std::time::Duration;
-/// use upnp::ssdp::SearchTarget;
+/// use rupnp::ssdp::SearchTarget;
 ///
-/// # async fn discover() -> Result<(), upnp::Error> {
-/// let devices = upnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3)).await?;
+/// # async fn discover() -> Result<(), rupnp::Error> {
+/// let devices = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3)).await?;
 /// pin_utils::pin_mut!(devices);
 ///
 /// while let Some(device) = devices.try_next().await? {

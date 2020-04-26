@@ -17,7 +17,7 @@ use rupnp::ssdp::{SearchTarget, URN};
 
 const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
-#[async_std::main]
+#[tokio::main]
 async fn main() -> Result<(), rupnp::Error> {
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
     let devices = rupnp::discover(search_target, Duration::from_secs(3)).await?;
