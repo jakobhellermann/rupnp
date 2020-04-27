@@ -16,8 +16,8 @@ full_device_spec = []
 [dependencies]
 tokio = { version = "0.2", features = ["tcp", "io-util", "stream"] }
 futures-util = { version = "0.3", default-features = false }
+genawaiter = { version = "0.99", default-features = false, features = ["futures03"] }
 get_if_addrs = "0.5"
-genawaiter = { version = "0.99", features = ["futures03"] }
 http = "0.2"
 ssdp-client = "0.5"
 roxmltree = "0.11"
