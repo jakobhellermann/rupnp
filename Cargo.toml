@@ -1,6 +1,6 @@
 [package]
 name = "rupnp"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 readme = "README.md"
 repository = "https://github.com/jjakobh/upnp"
