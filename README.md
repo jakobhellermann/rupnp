@@ -1,3 +1,6 @@
+![GitHub last commit](https://img.shields.io/github/last-commit/jakobhellermann/rupnp.svg)
+[![Crates.io](https://img.shields.io/crates/v/rupnp.svg)](https://crates.io/crates/rupnp)
+
 # rupnp
 An asynchronous library for finding UPnP control points, performing actions on them
 and reading their service descriptions.
