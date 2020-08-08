@@ -1,6 +1,6 @@
 [package]
 name = "rupnp"
-version = "0.1.5"
+version = "0.1.6"
 authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 readme = "README.md"
 repository = "https://github.com/jakobhellermann/rupnp"
@@ -20,7 +20,7 @@ genawaiter = { version = "0.99", default-features = false, features = ["futures0
 get_if_addrs = "0.5"
 http = "0.2"
 ssdp-client = "0.5"
-roxmltree = "0.11"
+roxmltree = "0.13"
 hyper = "0.13"
 bytes = "0.5"
 
