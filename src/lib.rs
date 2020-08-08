@@ -17,7 +17,7 @@
 //! The following code searches for devices that have a `RenderingControl` service
 //! and prints their names along with their current volume.
 //!
-//! ```rust,norun
+//! ```rust,no_run
 //! use futures::prelude::*;
 //! use std::time::Duration;
 //! use rupnp::ssdp::{SearchTarget, URN};

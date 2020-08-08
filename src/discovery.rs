@@ -6,7 +6,7 @@ use std::time::Duration;
 /// Discovers UPnP devices on the network.
 ///
 /// # Example usage:
-/// ```rust,norun
+/// ```rust,no_run
 /// use futures::prelude::*;
 /// use std::time::Duration;
 /// use rupnp::ssdp::SearchTarget;
