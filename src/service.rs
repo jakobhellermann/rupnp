@@ -302,9 +302,13 @@ fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree:
 }
 
 async fn subscribe_stream(mut listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
-    let mut incoming = listener.incoming();
-    while let Some(stream) = incoming.next().await {
-        let mut lines = BufReader::new(yield_try!(co => stream)).lines();
+    loop {
+        let stream = match yield_try!(co => listener.try_next().await) {
+            Some(stream) => stream,
+            _ => return,
+        };
+
+        let mut lines = BufReader::new(stream).lines();
 
         let mut input = String::new();
         let mut is_xml = false;
