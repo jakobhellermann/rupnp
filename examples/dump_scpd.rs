@@ -9,8 +9,10 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use tokio::prelude::*;
-use tokio::task::{spawn, JoinHandle};
+use tokio::{
+    io::AsyncWriteExt,
+    task::{spawn, JoinHandle},
+};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {

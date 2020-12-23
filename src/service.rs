@@ -6,12 +6,11 @@ use crate::{
     Result,
 };
 
+use futures_core::stream::Stream;
 use genawaiter::sync::{Co, Gen};
 use tokio::{
-    io::BufReader,
+    io::{AsyncBufReadExt, BufReader},
     net::TcpListener,
-    prelude::*,
-    stream::{Stream, StreamExt},
 };
 
 use http::{uri::PathAndQuery, Request, Uri};
@@ -301,18 +300,17 @@ fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree:
     Ok(hashmap)
 }
 
-async fn subscribe_stream(mut listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
-    let mut incoming = listener.incoming();
-    while let Some(stream) = incoming.next().await {
-        let mut lines = BufReader::new(yield_try!(co => stream)).lines();
+async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
+    loop {
+        let (stream, _) = yield_try!(co => listener.accept().await);
+        let mut lines = BufReader::new(stream).lines();
 
         let mut input = String::new();
         let mut is_xml = false;
 
         // sometimes the xml is on one line, sometimes on multiple ones.
         // we dont care about the http stuff before the "<e:propertyset>"
-        while let Some(line) = lines.next().await {
-            let line = yield_try!(co => line);
+        while let Ok(Some(line)) = lines.next_line().await {
             if is_xml || line.starts_with("<e:propertyset") {
                 input.push_str(&line);
                 is_xml = true;

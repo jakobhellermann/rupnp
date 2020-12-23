@@ -28,18 +28,7 @@ impl HyperBodyExt for hyper::Body {
     ) -> std::pin::Pin<
         Box<dyn std::future::Future<Output = Result<bytes::Bytes>> + Send + Sync + 'static>,
     > {
-        use futures_util::stream::TryStreamExt;
-
-        Box::pin(async {
-            let body = self
-                .try_fold(bytes::BytesMut::new(), |mut acc, chunk| async {
-                    acc.extend(chunk);
-                    Ok(acc)
-                })
-                .await?;
-
-            Ok(body.freeze())
-        })
+        Box::pin(async { hyper::body::to_bytes(self).await.map_err(|e| e.into()) })
     }
 }
 

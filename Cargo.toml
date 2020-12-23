@@ -1,6 +1,6 @@
 [package]
 name = "rupnp"
-version = "0.1.7"
+version = "1.0.0"
 authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 readme = "README.md"
 repository = "https://github.com/jakobhellermann/rupnp"
@@ -14,17 +14,18 @@ edition = "2018"
 full_device_spec = []
 
 [dependencies]
-tokio = { version = "0.2", features = ["tcp", "io-util", "stream"] }
+tokio = { version = "1.0", features = ["net", "io-util"] }
+futures-core = "0.3"
 futures-util = { version = "0.3", default-features = false }
 genawaiter = { version = "0.99", default-features = false, features = ["futures03"] }
 get_if_addrs = "0.5"
 http = "0.2"
-ssdp-client = "0.5"
+ssdp-client = "1.0"
 roxmltree = "0.13"
-hyper = "0.13"
-bytes = "0.5"
+hyper = { version = "0.14", features = ["client", "http1", "tcp"] }
+bytes = "1.0"
 
 [dev-dependencies]
-tokio = { version = "0.2", features = ["macros", "fs"] }
+tokio = { version = "1.0", features = ["macros", "fs", "rt-multi-thread"] }
 futures = "0.3"
 pin-utils = "0.1"
