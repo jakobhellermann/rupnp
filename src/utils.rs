@@ -1,6 +1,8 @@
 use crate::{Error, Result};
+#[cfg(feature = "subscribe")]
 use get_if_addrs::{get_if_addrs, Interface};
 use roxmltree::{Attribute, Document, Node};
+#[cfg(feature = "subscribe")]
 use std::net::{IpAddr, SocketAddrV4};
 
 pub trait HttpResponseExt: Sized {
@@ -95,6 +97,7 @@ pub fn find_node_attribute<'n, 'd: 'n>(node: Node<'d, 'n>, attr: &str) -> Option
         .map(Attribute::value)
 }
 
+#[cfg(feature = "subscribe")]
 pub fn get_local_addr() -> Result<SocketAddrV4> {
     get_if_addrs()?
         .iter()

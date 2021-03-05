@@ -6,8 +6,11 @@ use crate::{
     Result,
 };
 
+#[cfg(feature = "subscribe")]
 use futures_core::stream::Stream;
+#[cfg(feature = "subscribe")]
 use genawaiter::sync::{Co, Gen};
+#[cfg(feature = "subscribe")]
 use tokio::{
     io::{AsyncBufReadExt, BufReader},
     net::TcpListener,
@@ -165,6 +168,7 @@ impl Service {
         Ok(values)
     }
 
+    #[cfg(feature = "subscribe")]
     async fn make_subscribe_request(
         &self,
         url: &Uri,
@@ -216,6 +220,7 @@ impl Service {
     /// # Ok(())
     /// # }
     /// ```
+    #[cfg(feature = "subscribe")]
     pub async fn subscribe(
         &self,
         url: &Uri,
@@ -270,6 +275,7 @@ impl Service {
     }
 }
 
+#[cfg(feature = "subscribe")]
 macro_rules! yield_try {
     ( $co:expr => $expr:expr ) => {
         match $expr {
@@ -282,6 +288,7 @@ macro_rules! yield_try {
     };
 }
 
+#[cfg(feature = "subscribe")]
 fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree::Error> {
     let doc = Document::parse(&input)?;
     let hashmap: HashMap<String, String> = doc
@@ -300,6 +307,7 @@ fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree:
     Ok(hashmap)
 }
 
+#[cfg(feature = "subscribe")]
 async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
     loop {
         let (stream, _) = yield_try!(co => listener.accept().await);

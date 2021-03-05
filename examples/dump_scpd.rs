@@ -9,10 +9,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use tokio::{
-    io::AsyncWriteExt,
-    task::{spawn, JoinHandle},
-};
+use tokio::task::{spawn, JoinHandle};
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -67,12 +64,16 @@ fn print(
         let service = service.clone();
 
         handles.push(spawn(async move {
-            let mut svc_file = tokio::fs::File::create(path.join(&svc)).await?;
+            use std::io::Write;
+
+            // let mut svc_file = tokio::fs::File::create(path.join(&svc)).await?;
+            let mut svc_file = std::fs::File::create(path.join(&svc))?;
 
             let mut buf = Vec::with_capacity(128);
             write_service(&mut buf, service, url).await?;
 
-            svc_file.write_all(&buf).await?;
+            svc_file.write_all(&buf)?;
+            // svc_file.write_all(&buf).await?;
             Ok(())
         }));
     }

@@ -11,14 +11,17 @@ license = "MIT/Apache-2.0"
 edition = "2018"
 
 [features]
+default = ["subscribe", "genawaiter", "get_if_addrs"]
+
 full_device_spec = []
+subscribe = ["tokio"]
 
 [dependencies]
-tokio = { version = "1.0", features = ["net", "io-util"] }
+tokio = { version = "1.0", features = ["net", "io-util"], optional = true }
 futures-core = "0.3"
 futures-util = { version = "0.3", default-features = false }
-genawaiter = { version = "0.99", default-features = false, features = ["futures03"] }
-get_if_addrs = "0.5"
+genawaiter = { version = "0.99", default-features = false, features = ["futures03"], optional = true }
+get_if_addrs = { version = "0.5", optional = true }
 http = "0.2"
 ssdp-client = "1.0"
 roxmltree = "0.13"
@@ -29,3 +32,8 @@ bytes = "1.0"
 tokio = { version = "1.0", features = ["macros", "fs", "rt-multi-thread"] }
 futures = "0.3"
 pin-utils = "0.1"
+
+
+[[example]]
+name = "subscribe"
+required-features = ["subscribe"]
