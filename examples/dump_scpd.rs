@@ -15,8 +15,9 @@ use tokio::task::{spawn, JoinHandle};
 async fn main() -> Result<(), Error> {
     let mut devices: Vec<_> = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(1))
         .await?
-        .try_collect()
-        .await?;
+        .filter_map(|result| async { result.map_err(|e| println!("{}", e)).ok() })
+        .collect()
+        .await;
 
     devices.sort_by_key(|d| d.device_type().clone());
     devices.dedup_by_key(|d| d.device_type().clone());
