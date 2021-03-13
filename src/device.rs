@@ -1,3 +1,5 @@
+use std::hash::Hasher;
+use std::hash::Hash;
 use crate::{
     find_in_xml,
     utils::{self, HttpResponseExt, HyperBodyExt},
@@ -47,6 +49,17 @@ impl std::ops::Deref for Device {
         &self.device_spec
     }
 }
+impl Hash for Device {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.url.hash(state);
+    }
+}
+impl PartialEq for Device {
+    fn eq(&self, other: &Self) -> bool {
+        self.url == other.url
+    }
+}
+impl Eq for Device {}
 
 /// Information about a device.
 ///
