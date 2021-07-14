@@ -129,7 +129,7 @@ impl Service {
         let soap_action = format!("\"{}#{}\"", &self.service_type, action);
 
         let request = Request::post(self.control_url(url))
-            .header("CONTENT-TYPE", "xml")
+            .header("CONTENT-TYPE", "text/xml; charset=\"utf-8\"")
             .header("SOAPAction", soap_action)
             .body(body.into())
             .expect("infallible");
