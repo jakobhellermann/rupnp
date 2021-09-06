@@ -38,3 +38,16 @@ pub async fn discover(
         .map(|res| Ok(res?.location().parse()?))
         .and_then(Device::from_url))
 }
+
+/// Discovers UPnP devices and saves extra elements in device descriptions
+pub async fn discover_with_fields<'a>(
+    search_target: &SearchTarget,
+    timeout: Duration,
+    extra_fields: &'a [&'a str],
+) -> Result<impl Stream<Item = Result<Device>> + 'a> {
+    Ok(ssdp_client::search(search_target, timeout, 3)
+        .await?
+        .map_err(Error::SSDPError)
+        .map(|res| Ok(res?.location().parse()?))
+        .and_then(move |url| Device::from_url_and_fields(url, extra_fields)))
+}

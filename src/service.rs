@@ -72,7 +72,7 @@ impl Service {
 
     /// Fetches the [`SCPD`](scpd/struct.SCPD.html) of this service.
     pub async fn scpd(&self, url: &Uri) -> Result<SCPD> {
-        Ok(SCPD::from_url(&self.scpd_url(url), self.service_type().clone()).await?)
+        SCPD::from_url(&self.scpd_url(url), self.service_type().clone()).await
     }
 
     /// Execute some UPnP Action on this service.
@@ -142,7 +142,7 @@ impl Service {
             .await?;
         let doc = std::str::from_utf8(&doc)?;
 
-        let document = Document::parse(&doc)?;
+        let document = Document::parse(doc)?;
         let response = utils::find_root(&document, "Body", "UPnP Response")?
             .first_element_child()
             .ok_or_else(|| {
