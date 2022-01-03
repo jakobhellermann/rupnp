@@ -10,7 +10,7 @@ use std::{fmt, rc::Rc};
 /// The action consists of its name used in the services
 /// [`action`](../struct.Service.html#method.action) function and a List of
 /// [`Argument`](struct.Argument.html)s
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Action {
     name: String,
     arguments: Vec<Argument>,
@@ -78,7 +78,7 @@ impl Action {
 
 /// Every argument has its associated [`StateVariable`](struct.StateVariable.html), which contains
 /// more information about its possible values/range/etc.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Argument {
     name: String,
     // if not input, it is an output
