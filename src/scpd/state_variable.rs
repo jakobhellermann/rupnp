@@ -1,6 +1,7 @@
 use crate::{find_in_xml, utils, Error, Result};
 use roxmltree::Node;
-use std::{fmt, ops::RangeInclusive};
+use std::fmt;
+use std::fmt::Formatter;
 
 /// A `StateVariable` is the type of every [Argument](struct.Argument.html) in UPnP Actions.
 /// It is either a single value, an enumeration of strings or an integer range: see
@@ -15,6 +16,39 @@ pub struct StateVariable {
     optional: bool,
 }
 
+/// The range of a StateVariable
+#[derive(Debug)]
+pub struct StateVariableRange {
+    minimum: String,
+    maximum: String,
+    step: Option<String>,
+}
+
+impl fmt::Display for StateVariableRange {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        write!(f, "{}..={}", self.minimum(), self.maximum())?;
+        if let Some(step) = self.step() {
+            write!(f, ":{}", step)?;
+        }
+
+        Ok(())
+    }
+}
+
+impl StateVariableRange {
+    pub fn minimum(&self) -> &str {
+        &self.minimum
+    }
+
+    pub fn maximum(&self) -> &str {
+        &self.maximum
+    }
+
+    pub fn step(&self) -> &Option<String> {
+        &self.step
+    }
+}
+
 /// The type of a state variable.
 #[derive(Debug)]
 pub enum StateVariableKind {
@@ -22,8 +56,8 @@ pub enum StateVariableKind {
     Simple(DataType),
     /// An enumeration of possible strings. Can have a default value.
     Enum(Vec<String>),
-    /// A Range of integer values.
-    Range(RangeInclusive<i64>, i64),
+    /// A Range of values.
+    Range(StateVariableRange),
 }
 
 impl fmt::Display for StateVariable {
@@ -63,7 +97,7 @@ impl StateVariable {
         let kind = match (variants, range) {
             (None, None) => Ok(StateVariableKind::Simple(datatype)),
             (Some(variants), None) => Ok(StateVariableKind::Enum(variants)),
-            (None, Some((range, step))) => Ok(StateVariableKind::Range(range, step)),
+            (None, Some(range)) => Ok(StateVariableKind::Range(range)),
             (Some(_), Some(_)) => Err(Error::ParseError(
                 "both `AllowedValues` and `AllowedValueRange` is set",
             )),
@@ -132,6 +166,7 @@ pub enum DataType {
     BinHex,
     Uri,
 }
+
 impl fmt::Display for DataType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt::Debug::fmt(self, f)
@@ -180,13 +215,17 @@ impl std::str::FromStr for DataType {
     }
 }
 
-fn range_from_xml(node: Node<'_, '_>) -> Result<(RangeInclusive<i64>, i64)> {
+fn range_from_xml(node: Node<'_, '_>) -> Result<StateVariableRange> {
     #[allow(non_snake_case)]
     let (minimum, maximum, step) = find_in_xml! { node => minimum, maximum, ?step };
 
-    let step = step.map(utils::parse_node_text).transpose()?.unwrap_or(1);
+    let step = step.map(utils::parse_node_text).transpose()?;
     let minimum = utils::parse_node_text(minimum)?;
     let maximum = utils::parse_node_text(maximum)?;
 
-    Ok((minimum..=maximum, step))
+    Ok(StateVariableRange {
+        minimum,
+        maximum,
+        step,
+    })
 }
