@@ -24,7 +24,7 @@ genawaiter = { version = "0.99", default-features = false, features = ["futures0
 get_if_addrs = { version = "0.5", optional = true }
 http = "0.2"
 ssdp-client = "1.0"
-roxmltree = "0.13"
+roxmltree = "0.14"
 hyper = { version = "0.14", features = ["client", "http1", "tcp"] }
 bytes = "1.0"
 
