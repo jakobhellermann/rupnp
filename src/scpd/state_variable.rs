@@ -44,8 +44,8 @@ impl StateVariableRange {
         &self.maximum
     }
 
-    pub fn step(&self) -> &Option<String> {
-        &self.step
+    pub fn step(&self) -> Option<&str> {
+        self.step.as_deref()
     }
 }
 
