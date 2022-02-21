@@ -94,11 +94,8 @@ impl fmt::Display for Argument {
             StateVariableKind::Enum(variants) => {
                 write!(f, "[{}]", variants.join(", "))?;
             }
-            StateVariableKind::Range(range, step) => {
+            StateVariableKind::Range(range) => {
                 write!(f, "{:?}", range)?;
-                if *step != 1 {
-                    write!(f, ":{}", step)?;
-                }
             }
         }
 
