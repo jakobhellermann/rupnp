@@ -104,6 +104,7 @@ impl From<Utf8Error> for Error {
 
 #[derive(Debug)]
 pub struct UPnPError {
+    #[allow(unused)]
     fault_code: String,
     fault_string: String,
     err_code: u16,
