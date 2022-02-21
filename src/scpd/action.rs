@@ -94,9 +94,7 @@ impl fmt::Display for Argument {
             StateVariableKind::Enum(variants) => {
                 write!(f, "[{}]", variants.join(", "))?;
             }
-            StateVariableKind::Range(range) => {
-                write!(f, "{:?}", range)?;
-            }
+            StateVariableKind::Range(range) => write!(f, "{}", range)?,
         }
 
         if let Some(default) = self.state_var.default() {
