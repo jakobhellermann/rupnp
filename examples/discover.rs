@@ -4,7 +4,7 @@ use std::time::Duration;
 
 #[tokio::main]
 async fn main() -> Result<(), rupnp::Error> {
-    let devices = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3)).await?;
+    let devices = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3), None).await?;
     pin_utils::pin_mut!(devices);
 
     while let Some(device) = devices.try_next().await? {
