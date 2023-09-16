@@ -1,6 +1,6 @@
 [package]
 name = "rupnp"
-version = "1.1.1"
+version = "2.0.0"
 authors = ["Jakob Hellermann <jakob.hellermann@protonmail.com>"]
 readme = "README.md"
 repository = "https://github.com/jakobhellermann/rupnp"
@@ -23,8 +23,8 @@ futures-util = { version = "0.3", default-features = false }
 genawaiter = { version = "0.99", default-features = false, features = ["futures03"], optional = true }
 get_if_addrs = { version = "0.5", optional = true }
 http = "0.2"
-ssdp-client = "1.0"
-roxmltree = "0.14"
+ssdp-client = "2.0"
+roxmltree = "0.18"
 hyper = { version = "0.14", features = ["client", "http1", "tcp"] }
 bytes = "1.0"
 

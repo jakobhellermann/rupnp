@@ -1,5 +1,3 @@
-use std::hash::Hasher;
-use std::hash::Hash;
 use crate::{
     find_in_xml,
     utils::{self, HttpResponseExt, HyperBodyExt},
@@ -8,6 +6,8 @@ use crate::{
 use http::Uri;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
+use std::hash::Hash;
+use std::hash::Hasher;
 
 #[derive(Debug, Clone)]
 /// A UPnP Device.

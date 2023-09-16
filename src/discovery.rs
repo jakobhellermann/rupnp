@@ -32,7 +32,7 @@ pub async fn discover(
     search_target: &SearchTarget,
     timeout: Duration,
 ) -> Result<impl Stream<Item = Result<Device>>> {
-    Ok(ssdp_client::search(search_target, timeout, 3)
+    Ok(ssdp_client::search(search_target, timeout, 3, None)
         .await?
         .map_err(Error::SSDPError)
         .map(|res| Ok(res?.location().parse()?))
