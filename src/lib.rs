@@ -57,7 +57,7 @@ mod service;
 mod utils;
 
 pub use device::{Device, DeviceSpec};
-pub use discovery::{discover, discover_with_fields};
+pub use discovery::{discover, discover_with_properties};
 pub use error::Error;
 pub use service::Service;
 
