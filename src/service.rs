@@ -157,11 +157,7 @@ impl Service {
             .children()
             .filter(Node::is_element)
             .filter_map(|node| -> Option<(String, String)> {
-                if let Some(text) = node.text() {
-                    Some((node.tag_name().name().to_string(), text.to_string()))
-                } else {
-                    None
-                }
+                node.text().map(|text| (node.tag_name().name().to_string(), text.to_string()))
             })
             .collect();
 
@@ -290,17 +286,13 @@ macro_rules! yield_try {
 
 #[cfg(feature = "subscribe")]
 fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree::Error> {
-    let doc = Document::parse(&input)?;
+    let doc = Document::parse(input)?;
     let hashmap: HashMap<String, String> = doc
         .root_element() // <e:propertyset />
         .children() // <e:property />
         .filter_map(|child| child.first_element_child()) // actual tag
         .filter_map(|node| {
-            if let Some(text) = node.text() {
-                Some((node.tag_name().name().to_string(), text.to_string()))
-            } else {
-                None
-            }
+            node.text().map(|text| (node.tag_name().name().to_string(), text.to_string()))
         })
         .collect();
 
