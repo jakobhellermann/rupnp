@@ -2,7 +2,7 @@ use futures::prelude::*;
 use rupnp::ssdp::SearchTarget;
 use std::time::Duration;
 
-const EXTRA: &[&str; 1] = &["manufacturerURL"];
+const EXTRA: &[&str; 2] = &["manufacturer", "manufacturerURL"];
 
 #[tokio::main]
 async fn main() -> Result<(), rupnp::Error> {
@@ -14,10 +14,10 @@ async fn main() -> Result<(), rupnp::Error> {
     while let Some(maybe_device) = devices.next().await {
         match maybe_device {
             Ok(device) => println!(
-                "{} has {} = {}",
+                "{} from {} @ {}",
                 device.friendly_name(),
-                EXTRA[0],
-                device.get_extra_element(EXTRA[0]).unwrap_or_default()
+                device.get_extra_element(EXTRA[0]).unwrap_or_default(),
+                device.get_extra_element(EXTRA[1]).unwrap_or_default()
             ),
             _ => (),
         };
