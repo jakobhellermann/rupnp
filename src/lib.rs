@@ -54,7 +54,7 @@ mod error;
 /// Service Control Protocol Description.
 pub mod scpd;
 mod service;
-mod utils;
+pub mod utils;
 
 pub use device::{Device, DeviceSpec};
 pub use discovery::{discover, discover_with_properties};

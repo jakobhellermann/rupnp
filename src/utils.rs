@@ -5,7 +5,7 @@ use roxmltree::{Document, Node};
 #[cfg(feature = "subscribe")]
 use std::net::{IpAddr, SocketAddrV4};
 
-pub trait HttpResponseExt: Sized {
+pub(crate) trait HttpResponseExt: Sized {
     fn err_if_not_200(self) -> Result<Self>;
 }
 impl HttpResponseExt for hyper::Response<hyper::Body> {
@@ -17,7 +17,7 @@ impl HttpResponseExt for hyper::Response<hyper::Body> {
         }
     }
 }
-pub trait HyperBodyExt: Sized {
+pub(crate) trait HyperBodyExt: Sized {
     fn text(
         self,
     ) -> std::pin::Pin<
