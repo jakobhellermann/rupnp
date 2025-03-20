@@ -1,6 +1,6 @@
 use crate::{Error, Result};
 #[cfg(feature = "subscribe")]
-use get_if_addrs::{get_if_addrs, Interface};
+use if_addrs::{get_if_addrs, Interface};
 use roxmltree::{Document, Node};
 #[cfg(feature = "subscribe")]
 use std::net::{IpAddr, SocketAddrV4};
