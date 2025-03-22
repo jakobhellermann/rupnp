@@ -72,7 +72,7 @@ impl Service {
 
     /// Fetches the [`SCPD`](scpd/struct.SCPD.html) of this service.
     pub async fn scpd(&self, url: &Uri) -> Result<SCPD> {
-        Ok(SCPD::from_url(&self.scpd_url(url), self.service_type().clone()).await?)
+        SCPD::from_url(&self.scpd_url(url), self.service_type().clone()).await
     }
 
     /// Execute some UPnP Action on this service.
@@ -142,7 +142,7 @@ impl Service {
             .await?;
         let doc = std::str::from_utf8(&doc)?;
 
-        let document = Document::parse(&doc)?;
+        let document = Document::parse(doc)?;
         let response = utils::find_root(&document, "Body", "UPnP Response")?
             .first_element_child()
             .ok_or_else(|| {
@@ -157,11 +157,7 @@ impl Service {
             .children()
             .filter(Node::is_element)
             .filter_map(|node| -> Option<(String, String)> {
-                if let Some(text) = node.text() {
-                    Some((node.tag_name().name().to_string(), text.to_string()))
-                } else {
-                    None
-                }
+                node.text().map(|text| (node.tag_name().name().to_string(), text.to_string()))
             })
             .collect();
 
@@ -290,17 +286,13 @@ macro_rules! yield_try {
 
 #[cfg(feature = "subscribe")]
 fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree::Error> {
-    let doc = Document::parse(&input)?;
+    let doc = Document::parse(input)?;
     let hashmap: HashMap<String, String> = doc
         .root_element() // <e:propertyset />
         .children() // <e:property />
         .filter_map(|child| child.first_element_child()) // actual tag
         .filter_map(|node| {
-            if let Some(text) = node.text() {
-                Some((node.tag_name().name().to_string(), text.to_string()))
-            } else {
-                None
-            }
+            node.text().map(|text| (node.tag_name().name().to_string(), text.to_string()))
         })
         .collect();
 
