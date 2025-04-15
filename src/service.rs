@@ -12,7 +12,7 @@ use futures_core::stream::Stream;
 use genawaiter::sync::{Co, Gen};
 #[cfg(feature = "subscribe")]
 use tokio::{
-    io::{AsyncBufReadExt, BufReader},
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
     net::TcpListener,
 };
 
@@ -302,8 +302,8 @@ fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree:
 #[cfg(feature = "subscribe")]
 async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, String>>>) {
     loop {
-        let (stream, _) = yield_try!(co => listener.accept().await);
-        let mut lines = BufReader::new(stream).lines();
+        let (mut stream, _) = yield_try!(co => listener.accept().await);
+        let mut lines = BufReader::new(&mut stream).lines();
 
         let mut input = String::new();
         let mut is_xml = false;
@@ -320,6 +320,9 @@ async fn subscribe_stream(listener: TcpListener, co: Co<Result<HashMap<String, S
                 break;
             };
         }
+
+        let response = "HTTP/1.1 200 OK\r\n\r\n";
+        let _ = stream.write_all(response.as_bytes()).await;
 
         let hashmap = yield_try!(co => propertyset_to_map(&input));
 
