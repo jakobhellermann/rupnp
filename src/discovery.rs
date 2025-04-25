@@ -13,7 +13,7 @@ use std::time::Duration;
 ///
 /// # async fn discover() -> Result<(), rupnp::Error> {
 /// let devices = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3), None).await?;
-/// pin_utils::pin_mut!(devices);
+/// let mut devices = std::pin::pin!(devices);
 ///
 /// while let Some(device) = devices.try_next().await? {
 ///     println!(
@@ -45,8 +45,8 @@ pub async fn discover(
 /// use rupnp::ssdp::SearchTarget;
 ///
 /// # async fn discover_with_properties() -> Result<(), rupnp::Error> {
-/// let devices = rupnp::discover_with_properties(&SearchTarget::RootDevice, Duration::from_secs(3), &["manufacturer", "manufacturerURL"]).await?;
-/// pin_utils::pin_mut!(devices);
+/// let devices = rupnp::discover_with_properties(&SearchTarget::RootDevice, Duration::from_secs(3), None, &["manufacturer", "manufacturerURL"]).await?;
+/// let mut devices = std::pin::pin!(devices);
 ///
 /// while let Some(device) = devices.try_next().await? {
 ///     println!(

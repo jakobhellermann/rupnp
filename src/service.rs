@@ -6,10 +6,13 @@ use crate::{
     Result,
 };
 
+use bytes::Bytes;
 #[cfg(feature = "subscribe")]
 use futures_core::stream::Stream;
 #[cfg(feature = "subscribe")]
 use genawaiter::sync::{Co, Gen};
+use http_body_util::Empty;
+use hyper_util::{client::legacy::Client, rt::TokioExecutor};
 #[cfg(feature = "subscribe")]
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -131,14 +134,15 @@ impl Service {
         let request = Request::post(self.control_url(url))
             .header("CONTENT-TYPE", "text/xml; charset=\"utf-8\"")
             .header("SOAPAction", soap_action)
-            .body(body.into())
+            .body(body)
             .expect("infallible");
-        let doc = hyper::Client::new()
+        let doc = Client::builder(TokioExecutor::new())
+            .build_http()
             .request(request)
             .await?
             .err_if_not_200()?
             .into_body()
-            .text()
+            .bytes()
             .await?;
         let doc = std::str::from_utf8(&doc)?;
 
@@ -171,16 +175,23 @@ impl Service {
         callback: &str,
         timeout_secs: u32,
     ) -> Result<String> {
+        use bytes::Bytes;
+        use http_body_util::Empty;
+
         let req = Request::builder()
             .uri(self.event_sub_url(url))
             .method("SUBSCRIBE")
             .header("CALLBACK", format!("<{}>", callback))
             .header("NT", "upnp:event")
             .header("TIMEOUT", format!("Second-{}", timeout_secs))
-            .body(hyper::Body::empty())
+            .body(Empty::<Bytes>::new())
             .expect("infallible");
 
-        let response = hyper::Client::new().request(req).await?.err_if_not_200()?;
+        let response = Client::builder(TokioExecutor::new())
+            .build_http()
+            .request(req)
+            .await?
+            .err_if_not_200()?;
 
         let sid = response
             .headers()
@@ -245,9 +256,13 @@ impl Service {
             .method("SUBSCRIBE")
             .header("SID", sid)
             .header("TIMEOUT", format!("Second-{}", timeout_secs))
-            .body(hyper::Body::empty())
+            .body(Empty::<Bytes>::new())
             .expect("infallible");
-        hyper::Client::new().request(req).await?.err_if_not_200()?;
+        Client::builder(TokioExecutor::new())
+            .build_http()
+            .request(req)
+            .await?
+            .err_if_not_200()?;
 
         Ok(())
     }
@@ -262,10 +277,14 @@ impl Service {
             .uri(self.event_sub_url(url))
             .method("UNSUBSCRIBE")
             .header("SID", sid)
-            .body(hyper::Body::empty())
+            .body(Empty::<Bytes>::new())
             .expect("infallible");
 
-        hyper::Client::new().request(req).await?.err_if_not_200()?;
+        Client::builder(TokioExecutor::new())
+            .build_http()
+            .request(req)
+            .await?
+            .err_if_not_200()?;
 
         Ok(())
     }

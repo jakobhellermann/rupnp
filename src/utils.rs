@@ -1,4 +1,5 @@
 use crate::{Error, Result};
+use http_body_util::BodyExt;
 #[cfg(feature = "subscribe")]
 use if_addrs::{get_if_addrs, Interface};
 use roxmltree::{Document, Node};
@@ -8,7 +9,7 @@ use std::net::{IpAddr, SocketAddrV4};
 pub(crate) trait HttpResponseExt: Sized {
     fn err_if_not_200(self) -> Result<Self>;
 }
-impl HttpResponseExt for hyper::Response<hyper::Body> {
+impl<B> HttpResponseExt for hyper::Response<B> {
     fn err_if_not_200(self) -> Result<Self> {
         if self.status() != 200 {
             Err(Error::HttpErrorCode(self.status()))
@@ -18,19 +19,11 @@ impl HttpResponseExt for hyper::Response<hyper::Body> {
     }
 }
 pub(crate) trait HyperBodyExt: Sized {
-    fn text(
-        self,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<bytes::Bytes>> + Send + Sync + 'static>,
-    >;
+    async fn bytes(self) -> Result<bytes::Bytes>;
 }
-impl HyperBodyExt for hyper::Body {
-    fn text(
-        self,
-    ) -> std::pin::Pin<
-        Box<dyn std::future::Future<Output = Result<bytes::Bytes>> + Send + Sync + 'static>,
-    > {
-        Box::pin(async { hyper::body::to_bytes(self).await.map_err(|e| e.into()) })
+impl HyperBodyExt for hyper::body::Incoming {
+    async fn bytes(self) -> Result<bytes::Bytes> {
+        Ok(self.collect().await?.to_bytes())
     }
 }
 

@@ -24,7 +24,7 @@ const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingContro
 async fn main() -> Result<(), rupnp::Error> {
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
     let devices = rupnp::discover(&search_target, Duration::from_secs(3), None).await?;
-    pin_utils::pin_mut!(devices);
+    let mut devices = std::pin::pin!(devices);
 
     while let Some(device) = devices.try_next().await? {
         let service = device

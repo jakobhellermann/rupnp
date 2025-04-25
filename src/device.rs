@@ -3,7 +3,10 @@ use crate::{
     utils::{self, HttpResponseExt, HyperBodyExt},
     Result, Service,
 };
+use bytes::Bytes;
 use http::Uri;
+use http_body_util::Empty;
+use hyper_util::rt::TokioExecutor;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 use std::collections::HashMap;
@@ -33,13 +36,18 @@ impl Device {
     /// Creates a UPnP device from the given url, defining extra device properties
     /// to be accessed with `get_extra_property`.
     pub async fn from_url_and_properties(url: Uri, extra_keys: &[&str]) -> Result<Self> {
-        let body = hyper::Client::new()
+        let body = hyper_util::client::legacy::Client::builder(TokioExecutor::new())
+            .build_http::<Empty<Bytes>>()
             .get(url.clone())
             .await?
             .err_if_not_200()?
             .into_body()
-            .text()
+            .bytes()
             .await?;
+
+        // .into_body()
+        // .text()
+        // .await?;
         let body = std::str::from_utf8(&body)?;
 
         let document = Document::parse(body)?;

@@ -3,7 +3,10 @@ use crate::{
     utils::{self, HttpResponseExt, HyperBodyExt},
     Error,
 };
+use bytes::Bytes;
 use http::Uri;
+use http_body_util::Empty;
+use hyper_util::rt::TokioExecutor;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
 use std::rc::Rc;
@@ -36,12 +39,13 @@ impl SCPD {
     /// Fetches the SCPD description.
     /// The `urn` has to be provided because it isn't included in the description.
     pub(crate) async fn from_url(url: &Uri, urn: URN) -> Result<Self, Error> {
-        let body = hyper::Client::new()
+        let body = hyper_util::client::legacy::Client::builder(TokioExecutor::new())
+            .build_http::<Empty<Bytes>>()
             .get(url.clone())
             .await?
             .err_if_not_200()?
             .into_body()
-            .text()
+            .bytes()
             .await?;
         let body = std::str::from_utf8(&body)?;
 

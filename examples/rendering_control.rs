@@ -2,7 +2,7 @@ use rupnp::{http::Uri, ssdp::URN, Device};
 
 #[tokio::main]
 async fn main() -> Result<(), rupnp::Error> {
-    let url = Uri::from_static("http://192.168.2.49:1400/xml/device_description.xml");
+    let url = Uri::from_static("http://192.168.178.40:1400/xml/device_description.xml");
     let service_urn = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
     let device = Device::from_url(url).await?;

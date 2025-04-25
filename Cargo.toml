@@ -22,16 +22,18 @@ futures-core = "0.3"
 futures-util = { version = "0.3", default-features = false }
 genawaiter = { version = "0.99", default-features = false, features = ["futures03"], optional = true }
 if-addrs = { version = "0.13", optional = true }
-http = "0.2"
+http = "1.0"
 ssdp-client = "2.0"
-roxmltree = "0.18"
-hyper = { version = "0.14", features = ["client", "http1", "tcp"] }
+roxmltree = "0.20"
+hyper = { version = "1.0", features = ["client", "http1"] }
+hyper-util = { version = "0.1.11", features = ["client", "client-legacy", "http1"] }
 bytes = "1.0"
+http-body-util = "0.1.3"
 
 [dev-dependencies]
 tokio = { version = "1.0", features = ["macros", "fs", "rt-multi-thread"] }
 futures = "0.3"
-pin-utils = "0.1"
+anyhow = "1.0"
 
 
 [[example]]

@@ -5,10 +5,10 @@ use std::time::Duration;
 const RENDERING_CONTROL: URN = URN::service("schemas-upnp-org", "RenderingControl", 1);
 
 #[tokio::main]
-async fn main() -> Result<(), rupnp::Error> {
+async fn main() -> anyhow::Result<()> {
     let search_target = SearchTarget::URN(RENDERING_CONTROL);
     let devices = rupnp::discover(&search_target, Duration::from_secs(3), None).await?;
-    pin_utils::pin_mut!(devices);
+    let mut devices = std::pin::pin!(devices);
 
     while let Some(device) = devices.try_next().await? {
         let service = device

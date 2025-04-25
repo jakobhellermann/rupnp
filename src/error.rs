@@ -3,10 +3,12 @@ use std::{fmt, str::Utf8Error};
 
 /// The UPnP Error type.
 #[derive(Debug)]
+#[non_exhaustive]
 pub enum Error {
     UPnPError(UPnPError),
     SSDPError(ssdp_client::Error),
     NetworkError(hyper::Error),
+    NetworkClientError(hyper_util::client::legacy::Error),
     NoLocalInterfaceOpen,
     IO(std::io::Error),
     InvalidUrl(http::uri::InvalidUri),
@@ -30,6 +32,9 @@ impl fmt::Display for Error {
             Error::SSDPError(err) => write!(f, "error trying to discover devices: {}", err),
             Error::IO(err) => write!(f, "error reading response: {}", err),
             Error::NetworkError(err) => {
+                write!(f, "An error occurred trying to connect to device: {}", err)
+            }
+            Error::NetworkClientError(err) => {
                 write!(f, "An error occurred trying to connect to device: {}", err)
             }
             Error::NoLocalInterfaceOpen => write!(
@@ -69,6 +74,11 @@ impl std::error::Error for Error {
 impl From<hyper::Error> for Error {
     fn from(err: hyper::Error) -> Self {
         Error::NetworkError(err)
+    }
+}
+impl From<hyper_util::client::legacy::Error> for Error {
+    fn from(err: hyper_util::client::legacy::Error) -> Self {
+        Error::NetworkClientError(err)
     }
 }
 impl From<roxmltree::Error> for Error {
