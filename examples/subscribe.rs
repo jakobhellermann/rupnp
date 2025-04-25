@@ -24,9 +24,9 @@ fn handle(state_vars: HashMap<String, String>) {
     println!("Change {{");
     for (key, value) in state_vars {
         if value.len() > 256 {
-            println!("  {}: ...", key);
+            println!("  {key}: ...");
         } else {
-            println!("  {}: {}", key, value);
+            println!("  {key}: {value}");
         }
     }
     println!("}}");

@@ -17,7 +17,7 @@ async fn main() -> Result<(), rupnp::Error> {
         .parse()
         .map_err(rupnp::Error::invalid_response)?;
 
-    println!("{}", response);
+    println!("{response}");
 
     Ok(())
 }

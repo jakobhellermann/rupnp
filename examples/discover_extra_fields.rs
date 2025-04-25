@@ -16,15 +16,12 @@ async fn main() -> Result<(), rupnp::Error> {
     let mut devices = std::pin::pin!(devices);
 
     while let Some(maybe_device) = devices.next().await {
-        match maybe_device {
-            Ok(device) => println!(
-                "{} from {} @ {}",
-                device.friendly_name(),
-                device.get_extra_property(EXTRA[0]).unwrap_or_default(),
-                device.get_extra_property(EXTRA[1]).unwrap_or_default()
-            ),
-            _ => {}
-        };
+        if let Ok(device) = maybe_device { println!(
+            "{} from {} @ {}",
+            device.friendly_name(),
+            device.get_extra_property(EXTRA[0]).unwrap_or_default(),
+            device.get_extra_property(EXTRA[1]).unwrap_or_default()
+        ) };
     }
 
     Ok(())

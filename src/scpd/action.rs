@@ -20,18 +20,18 @@ impl fmt::Display for Action {
         write!(f, "{}(", self.name())?;
 
         for e in self.input_arguments().take(1) {
-            write!(f, "{}", e)?;
+            write!(f, "{e}")?;
         }
         for e in self.input_arguments().skip(1) {
-            write!(f, ", {}", e)?;
+            write!(f, ", {e}")?;
         }
         write!(f, ")")?;
 
         let mut output_arguments = self.output_arguments();
         if let Some(arg) = output_arguments.next() {
-            write!(f, " -> ({}", arg)?;
+            write!(f, " -> ({arg}")?;
             for arg in output_arguments {
-                write!(f, ", {}", arg)?;
+                write!(f, ", {arg}")?;
             }
             write!(f, ")")?;
         }
@@ -90,15 +90,15 @@ impl fmt::Display for Argument {
         write!(f, "{}: ", &self.name)?;
 
         match self.state_var.kind() {
-            StateVariableKind::Simple(datatype) => write!(f, "{}", datatype)?,
+            StateVariableKind::Simple(datatype) => write!(f, "{datatype}")?,
             StateVariableKind::Enum(variants) => {
                 write!(f, "[{}]", variants.join(", "))?;
             }
-            StateVariableKind::Range(range) => write!(f, "{}", range)?,
+            StateVariableKind::Range(range) => write!(f, "{range}")?,
         }
 
         if let Some(default) = self.state_var.default() {
-            write!(f, " = {}", default)?;
+            write!(f, " = {default}")?;
         }
 
         Ok(())

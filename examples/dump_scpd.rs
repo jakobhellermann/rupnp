@@ -16,7 +16,7 @@ async fn main() -> Result<(), Error> {
     let mut devices: Vec<_> =
         rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(1), None)
             .await?
-            .filter_map(|result| async { result.map_err(|e| println!("{}", e)).ok() })
+            .filter_map(|result| async { result.map_err(|e| println!("{e}")).ok() })
             .collect()
             .await;
 
@@ -32,7 +32,7 @@ async fn main() -> Result<(), Error> {
 
     for device in devices {
         print(&device, device.url(), 0, &path, &mut handles)?;
-        println!("");
+        println!();
     }
 
     for handle in handles {
@@ -59,7 +59,7 @@ fn print(
     for service in device.services() {
         let svc = urn_to_str(service.service_type());
 
-        println!("{}  - {}", i, svc);
+        println!("{i}  - {svc}");
 
         let url = url.clone();
         let path = path.clone();
@@ -97,14 +97,14 @@ async fn write_service(
     writeln!(w, "StateVars {{")?;
     for state_var in scpd.state_variables() {
         if state_var.sends_events() {
-            writeln!(w, "  {} (sends events)", state_var)?;
+            writeln!(w, "  {state_var} (sends events)")?;
         } else {
-            writeln!(w, "  {}", state_var)?;
+            writeln!(w, "  {state_var}")?;
         }
     }
     writeln!(w, "}}\n\nActions {{")?;
     for action in scpd.actions() {
-        writeln!(w, "  {}", action)?;
+        writeln!(w, "  {action}")?;
     }
     writeln!(w, "}}")?;
 

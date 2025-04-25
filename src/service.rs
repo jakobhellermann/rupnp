@@ -150,7 +150,7 @@ impl Service {
         let response = utils::find_root(&document, "Body", "UPnP Response")?
             .first_element_child()
             .ok_or_else(|| {
-                Error::XmlMissingElement("Body".to_string(), format!("{}Response", action))
+                Error::XmlMissingElement("Body".to_string(), format!("{action}Response"))
             })?;
 
         if response.tag_name().name().eq_ignore_ascii_case("Fault") {
@@ -161,7 +161,8 @@ impl Service {
             .children()
             .filter(Node::is_element)
             .filter_map(|node| -> Option<(String, String)> {
-                node.text().map(|text| (node.tag_name().name().to_string(), text.to_string()))
+                node.text()
+                    .map(|text| (node.tag_name().name().to_string(), text.to_string()))
             })
             .collect();
 
@@ -181,9 +182,9 @@ impl Service {
         let req = Request::builder()
             .uri(self.event_sub_url(url))
             .method("SUBSCRIBE")
-            .header("CALLBACK", format!("<{}>", callback))
+            .header("CALLBACK", format!("<{callback}>"))
             .header("NT", "upnp:event")
-            .header("TIMEOUT", format!("Second-{}", timeout_secs))
+            .header("TIMEOUT", format!("Second-{timeout_secs}"))
             .body(Empty::<Bytes>::new())
             .expect("infallible");
 
@@ -255,7 +256,7 @@ impl Service {
             .uri(self.event_sub_url(url))
             .method("SUBSCRIBE")
             .header("SID", sid)
-            .header("TIMEOUT", format!("Second-{}", timeout_secs))
+            .header("TIMEOUT", format!("Second-{timeout_secs}"))
             .body(Empty::<Bytes>::new())
             .expect("infallible");
         Client::builder(TokioExecutor::new())
@@ -311,7 +312,8 @@ fn propertyset_to_map(input: &str) -> Result<HashMap<String, String>, roxmltree:
         .children() // <e:property />
         .filter_map(|child| child.first_element_child()) // actual tag
         .filter_map(|node| {
-            node.text().map(|text| (node.tag_name().name().to_string(), text.to_string()))
+            node.text()
+                .map(|text| (node.tag_name().name().to_string(), text.to_string()))
         })
         .collect();
 

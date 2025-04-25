@@ -12,7 +12,7 @@ async fn main() -> Result<()> {
         let device = match device {
             Ok(device) => device,
             Err(e) => {
-                eprintln!("{}", e);
+                eprintln!("{e}");
                 continue;
             }
         };

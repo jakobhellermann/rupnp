@@ -116,13 +116,10 @@ pub struct DeviceSpec {
 }
 
 impl DeviceSpec {
-    fn from_xml<'a, 'input: 'a>(
-        node: Node<'a, 'input>,
-        extra_keys: &[&str],
-    ) -> Result<Self> {
+    fn from_xml<'a, 'input: 'a>(node: Node<'a, 'input>, extra_keys: &[&str]) -> Result<Self> {
         #[rustfmt::skip]
         #[allow(non_snake_case)]
-        let (device_type, friendly_name, services, devices, extra_properties) = 
+        let (device_type, friendly_name, services, devices, extra_properties) =
             find_in_xml! { node => deviceType, friendlyName, ?serviceList, ?deviceList, #extra_keys };
 
         #[cfg(feature = "full_device_spec")]

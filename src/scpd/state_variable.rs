@@ -28,7 +28,7 @@ impl fmt::Display for StateVariableRange {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         write!(f, "{}..={}", self.minimum(), self.maximum())?;
         if let Some(step) = self.step() {
-            write!(f, ":{}", step)?;
+            write!(f, ":{step}")?;
         }
 
         Ok(())
