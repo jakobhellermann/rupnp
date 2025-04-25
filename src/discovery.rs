@@ -12,7 +12,7 @@ use std::time::Duration;
 /// use rupnp::ssdp::SearchTarget;
 ///
 /// # async fn discover() -> Result<(), rupnp::Error> {
-/// let devices = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3)).await?;
+/// let devices = rupnp::discover(&SearchTarget::RootDevice, Duration::from_secs(3), None).await?;
 /// pin_utils::pin_mut!(devices);
 ///
 /// while let Some(device) = devices.try_next().await? {
@@ -31,8 +31,9 @@ use std::time::Duration;
 pub async fn discover(
     search_target: &SearchTarget,
     timeout: Duration,
+    ttl: Option<u32>,
 ) -> Result<impl Stream<Item = Result<Device>>> {
-    return discover_with_properties(search_target, timeout, &[]).await;
+    return discover_with_properties(search_target, timeout, ttl, &[]).await;
 }
 
 /// Discovers UPnP devices on the network and saves extra_fields in device descriptions
@@ -62,9 +63,10 @@ pub async fn discover(
 pub async fn discover_with_properties<'a>(
     search_target: &SearchTarget,
     timeout: Duration,
+    ttl: Option<u32>,
     extra_keys: &'a [&'a str],
 ) -> Result<impl Stream<Item = Result<Device>> + 'a> {
-    Ok(ssdp_client::search(search_target, timeout, 3, None)
+    Ok(ssdp_client::search(search_target, timeout, 3, ttl)
         .await?
         .map_err(Error::SSDPError)
         .map(|res| Ok(res?.location().parse()?))
