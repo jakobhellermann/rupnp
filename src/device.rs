@@ -6,6 +6,7 @@ use crate::{
 use http::Uri;
 use roxmltree::{Document, Node};
 use ssdp_client::URN;
+use std::collections::HashMap;
 use std::hash::Hash;
 use std::hash::Hasher;
 
@@ -26,6 +27,12 @@ impl Device {
     /// The url should point to the `/device_description.xml` or similar of the device.
     /// If you dont know the concrete location, use [`discover`](fn.discover.html) instead.
     pub async fn from_url(url: Uri) -> Result<Self> {
+        Self::from_url_and_properties(url, &[]).await
+    }
+
+    /// Creates a UPnP device from the given url, defining extra device properties
+    /// to be accessed with `get_extra_property`.
+    pub async fn from_url_and_properties(url: Uri, extra_keys: &[&str]) -> Result<Self> {
         let body = hyper::Client::new()
             .get(url.clone())
             .await?
@@ -35,9 +42,9 @@ impl Device {
             .await?;
         let body = std::str::from_utf8(&body)?;
 
-        let document = Document::parse(&body)?;
+        let document = Document::parse(body)?;
         let device = utils::find_root(&document, "device", "Device Description")?;
-        let device_spec = DeviceSpec::from_xml(device)?;
+        let device_spec = DeviceSpec::from_xml(device, extra_keys)?;
 
         Ok(Self { url, device_spec })
     }
@@ -63,11 +70,11 @@ impl Eq for Device {}
 
 /// Information about a device.
 ///
-/// By default it only includes its *friendly name*, device type and a list of subdevices and
-/// services in order to keep the structs size small.
+/// By default it only includes its *friendly name*, device type, a list of subdevices and
+/// services, and a `HashMap` of extra properties in order to keep the structs size small.
 ///
 /// If you also want the `ManufacturerURL`, `Model{Description,Number,Url}`, `serial number`, `UDN` and
-/// `UPC`, enable the `full_device_spec` feature.
+/// `UPC` as struct fields, enable the `full_device_spec` feature.
 #[derive(Debug, Clone)]
 pub struct DeviceSpec {
     device_type: URN,
@@ -75,6 +82,8 @@ pub struct DeviceSpec {
 
     devices: Vec<DeviceSpec>,
     services: Vec<Service>,
+
+    extra_properties: HashMap<String, Option<String>>,
 
     #[cfg(feature = "full_device_spec")]
     manufacturer: String,
@@ -99,10 +108,14 @@ pub struct DeviceSpec {
 }
 
 impl DeviceSpec {
-    fn from_xml<'a, 'input: 'a>(node: Node<'a, 'input>) -> Result<Self> {
+    fn from_xml<'a, 'input: 'a>(
+        node: Node<'a, 'input>,
+        extra_keys: &[&str],
+    ) -> Result<Self> {
+        #[rustfmt::skip]
         #[allow(non_snake_case)]
-        let (device_type, friendly_name, services, devices) =
-            find_in_xml! { node => deviceType, friendlyName, ?serviceList, ?deviceList };
+        let (device_type, friendly_name, services, devices, extra_properties) = 
+            find_in_xml! { node => deviceType, friendlyName, ?serviceList, ?deviceList, #extra_keys };
 
         #[cfg(feature = "full_device_spec")]
         #[allow(non_snake_case)]
@@ -138,7 +151,7 @@ impl DeviceSpec {
             Some(d) => d
                 .children()
                 .filter(Node::is_element)
-                .map(DeviceSpec::from_xml)
+                .map(|node| DeviceSpec::from_xml(node, extra_keys))
                 .collect::<Result<_>>()?,
             None => Vec::new(),
         };
@@ -176,6 +189,7 @@ impl DeviceSpec {
             presentation_url,
             devices,
             services,
+            extra_properties,
         })
     }
 
@@ -184,6 +198,12 @@ impl DeviceSpec {
     }
     pub fn friendly_name(&self) -> &str {
         &self.friendly_name
+    }
+    pub fn get_extra_property(&self, elem: &str) -> Option<&str> {
+        self.extra_properties
+            .get(elem)
+            .and_then(|o| o.as_ref())
+            .map(String::as_str)
     }
 
     #[cfg(feature = "full_device_spec")]

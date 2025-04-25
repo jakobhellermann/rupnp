@@ -45,7 +45,7 @@ impl SCPD {
             .await?;
         let body = std::str::from_utf8(&body)?;
 
-        let document = Document::parse(&body)?;
+        let document = Document::parse(body)?;
         let scpd = utils::find_root(&document, "scpd", "Service Control Point Definition")?;
 
         #[allow(non_snake_case)]
