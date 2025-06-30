@@ -1,0 +1,47 @@
+name: Rust Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # Check rustfmt
+  rustfmt:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - run: cargo fmt --all --check
+
+  # Check clippy.
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: clippy
+      - run: cargo clippy --all-targets --all-features
+
+  tests:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain: [stable]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ matrix.toolchain }}
+      - name: Run syntax check
+        run: cargo build --workspace --all-features
+      - name: Tests
+        run: cargo test --workspace --all-features --no-fail-fast
+        env:
+          RUST_BACKTRACE: full
