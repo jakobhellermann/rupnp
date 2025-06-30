@@ -32,7 +32,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        toolchain: [stable]
+        toolchain: [stable, "1.75"]
     steps:
       - uses: actions/checkout@v4
       - name: Install Toolchain
