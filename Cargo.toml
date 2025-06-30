@@ -14,8 +14,8 @@ rust-version = "1.75"
 [features]
 default = ["subscribe"]
 
-full_device_spec = []
-subscribe = ["dep:tokio", "dep:genawaiter", "dep:if-addrs"]
+full_device_spec = [] # store and expose the full DeviceSpec properties
+subscribe = ["dep:tokio", "dep:genawaiter", "dep:if-addrs"] # event notifications & state variable changes
 
 [dependencies]
 tokio = { version = "1.0", features = ["net", "io-util"], optional = true }
