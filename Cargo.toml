@@ -9,6 +9,7 @@ categories = ["network-programming", "asynchronous"]
 keywords = ["async", "upnp", "networking", "protocols"]
 license = "MIT/Apache-2.0"
 edition = "2018"
+rust-version = "1.75"
 
 [features]
 default = ["subscribe", "genawaiter", "if-addrs"]
