@@ -217,7 +217,7 @@ impl DeviceSpec {
     }
     #[cfg(feature = "full_device_spec")]
     pub fn manufacturer_url(&self) -> Option<&str> {
-        self.manufacturer_url.as_ref().map(String::as_str)
+        self.manufacturer_url.as_deref()
     }
     #[cfg(feature = "full_device_spec")]
     pub fn model_name(&self) -> &str {
@@ -225,19 +225,19 @@ impl DeviceSpec {
     }
     #[cfg(feature = "full_device_spec")]
     pub fn model_description(&self) -> Option<&str> {
-        self.model_description.as_ref().map(String::as_str)
+        self.model_description.as_deref()
     }
     #[cfg(feature = "full_device_spec")]
     pub fn model_number(&self) -> Option<&str> {
-        self.model_number.as_ref().map(String::as_str)
+        self.model_number.as_deref()
     }
     #[cfg(feature = "full_device_spec")]
     pub fn model_url(&self) -> Option<&str> {
-        self.model_url.as_ref().map(String::as_str)
+        self.model_url.as_deref()
     }
     #[cfg(feature = "full_device_spec")]
     pub fn serial_number(&self) -> Option<&str> {
-        self.serial_number.as_ref().map(String::as_str)
+        self.serial_number.as_deref()
     }
     #[cfg(feature = "full_device_spec")]
     pub fn udn(&self) -> &str {
@@ -245,7 +245,7 @@ impl DeviceSpec {
     }
     #[cfg(feature = "full_device_spec")]
     pub fn upc(&self) -> Option<&str> {
-        self.upc.as_ref().map(String::as_str)
+        self.upc.as_deref()
     }
 
     /// Returns a list of this devices subdevices.
