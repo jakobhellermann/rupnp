@@ -247,6 +247,10 @@ impl DeviceSpec {
     pub fn upc(&self) -> Option<&str> {
         self.upc.as_deref()
     }
+    #[cfg(feature = "full_device_spec")]
+    pub fn presentation_url(&self) -> Option<&str> {
+        self.presentation_url.as_deref()
+    }
 
     /// Returns a list of this devices subdevices.
     /// Note that this does not recurse, if you want that behaviour use
